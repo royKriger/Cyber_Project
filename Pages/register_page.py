@@ -2,8 +2,8 @@ import wx
 
 
 class RegisterPage(wx.Panel):
-    def __init__(self, parent):
-        super(RegisterPage, self).__init__(parent, size=(900, 750))
+    def __init__(self, parent, size):
+        super(RegisterPage, self).__init__(parent, size=size)
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -12,20 +12,32 @@ class RegisterPage(wx.Panel):
         self.label.SetFont(font)
         self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL, 20)
 
-        inputs = {"Email": 0, "Password": wx.TE_PASSWORD}
         input_sizer = wx.BoxSizer(wx.VERTICAL)
-        for name, style in inputs.items():
-            text = wx.TextCtrl(self, value=name, size=(250, 25), style=style)
-            input_sizer.Add(text, 0, wx.ALL, 20)
+        self.username = wx.TextCtrl(self, value="Username", size=(250, 25))
+        self.email = wx.TextCtrl(self, value="Email", size=(250, 25))
+        self.password = wx.TextCtrl(self, value="Pass", size=(250, 25), style=wx.TE_PASSWORD)
+        input_sizer.Add(self.username, 0, wx.ALL, 20)
+        input_sizer.Add(self.email, 0, wx.ALL, 20)
+        input_sizer.Add(self.password, 0, wx.ALL, 20)
 
-        buttons = ["Sign In", "Home Page"]
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
-        for text in buttons:
-            button = wx.Button(self, label=text, size=(120, 40))
-            self.Bind(wx.EVT_BUTTON, lambda event, cur=self: parent.show_frame(cur=cur), button)
-            buttons_sizer.Add(button, 0, wx.ALL, 30)
+        self.sign = wx.Button(self, label="Sign In", size=(120, 40))
+        self.home = wx.Button(self, label="Home Page", size=(120, 40))
+        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.home)
+        self.Bind(wx.EVT_BUTTON, self.on_sign_in, self.sign)
+        buttons_sizer.Add(self.sign, 0, wx.ALL, 20)
+        buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
         self.sizer.Add(input_sizer, 0, wx.ALIGN_CENTER, 50)
         self.sizer.Add(buttons_sizer, 0, wx.ALIGN_CENTER, 50)
         self.SetSizer(self.sizer)
         self.Layout()
+
+
+    def on_sign_in(self, event):
+        user = self.username.GetLineText(lineNo=0)
+        email = self.email.GetLineText(lineNo=0)
+        password = self.password.GetLineText(lineNo=0)
+        print(user)
+        print(email)
+        print(password)

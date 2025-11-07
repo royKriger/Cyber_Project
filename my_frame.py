@@ -15,7 +15,7 @@ class MyFrame(wx.Frame):
         self.pages = {}
 
         for F in (FirstPage, LoginPage, RegisterPage):
-            cur = F(self)
+            cur = F(self, size)
             self.sizer.Add(cur, proportion=1, flag=wx.EXPAND | wx.ALL)
             cur.Hide()
             self.pages[F] = cur
@@ -26,8 +26,11 @@ class MyFrame(wx.Frame):
         
         self.Layout()
 
+
     def show_frame(self, page=FirstPage, cur=None):
         frame = self.pages[page]
         if cur != None:
             cur.Hide()
         frame.Show(True)
+        self.Layout()
+        self.Refresh()

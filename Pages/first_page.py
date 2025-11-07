@@ -4,8 +4,8 @@ from Pages.register_page import RegisterPage
 
 
 class FirstPage(wx.Panel):
-    def __init__(self, parent):
-        super(FirstPage, self).__init__(parent, size=(900, 750))
+    def __init__(self, parent, size):
+        super(FirstPage, self).__init__(parent, size=size)
         
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
