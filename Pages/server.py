@@ -9,7 +9,7 @@ def accept_client(client):
     conn_cur = conn.cursor()
 
     data = client.recv(1024).decode()
-    client.send("Connected! ".encode())
+    client.send("Connected To The Server! ".encode())
     
     if data == "login":
         data = client.recv(1024).decode()
@@ -23,8 +23,8 @@ def accept_client(client):
         user, email, password = data[0], data[1], data[2]
         conn_cur.execute(f"SELECT Email FROM Users")
         emails = conn_cur.fetchall()
-        if email in emails:
-            client.send("Error ".encode())
+        if (email,) in emails:
+            client.send("500".encode())
         else:
             conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
     (user, email, password))
@@ -36,7 +36,7 @@ def accept_client(client):
 if __name__ == "__main__":
     server = socket.socket()
     server.bind(("0.0.0.0", 8200))
-    server.listen()
+    server.listen(5)
     (client, client_address) = server.accept()
     handle = Thread(target=accept_client, args=(client, ))
     handle.start()

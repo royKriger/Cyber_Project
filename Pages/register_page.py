@@ -21,23 +21,23 @@ class RegisterPage(wx.Panel):
         input_sizer.Add(wx.StaticText(self, label="Username"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.username, 0, wx.Left | wx.Right, 20)
         self.error1 = wx.StaticText(self)
-        input_sizer.Add(self.error1, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.error1, 0, wx.ALIGN_CENTER)
         input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
         self.error2 = wx.StaticText(self)
-        input_sizer.Add(self.error2, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
         self.error3 = wx.StaticText(self)
-        input_sizer.Add(self.error3, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.error3, 0, wx.ALIGN_CENTER)
         self.error = wx.StaticText(self)
-        input_sizer.Add(self.error, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.error, 0, wx.ALIGN_CENTER)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.sign = wx.Button(self, label="Sign In", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
         self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.home)
-        self.Bind(wx.EVT_BUTTON, self.on_sign_in, self.sign)
+        self.Bind(wx.EVT_BUTTON, lambda event, x=parent: self.on_sign_in(event, parent=x), self.sign)
         buttons_sizer.Add(self.sign, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
@@ -47,7 +47,7 @@ class RegisterPage(wx.Panel):
         self.Layout()
 
 
-    def on_sign_in(self, event):
+    def on_sign_in(self, event, parent):
         client = socket()
         client.connect(("192.168.1.206", 8200))
         client.send("register".encode())
@@ -56,7 +56,7 @@ class RegisterPage(wx.Panel):
         user = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        password = sha1(password).hexdigest()
+        password = sha1(password.encode()).hexdigest()
 
         data = f"{user},{email},{password}"
 
@@ -65,8 +65,14 @@ class RegisterPage(wx.Panel):
         data = client.recv(1024).decode()
         if data == "200":
             print("Data input in database completed succesfully! ")
-        
-        else:
-            print("Try Again! ")
+            self.username.SetLabel("")
+            self.email.SetLabel("")
+            self.password.SetLabel("")
+            parent.show_frame(cur=self)
+
+        elif data == "500":
+            print("Operation was not succesful!")
             self.error.Label = "Try Again! "
+            self.error.SetForegroundColour(wx.RED)
+            self.Layout()
         client.close()
