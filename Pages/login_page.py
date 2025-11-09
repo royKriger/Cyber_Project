@@ -1,10 +1,11 @@
 import wx
+from socket import socket
 
 
 class LoginPage(wx.Panel):
     def __init__(self, parent, size):
         super(LoginPage, self).__init__(parent, size=size)
-
+        
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.label = wx.StaticText(self, label="Loginnnnnn!")
@@ -33,8 +34,21 @@ class LoginPage(wx.Panel):
 
 
     def on_log_in(self, event):
+        client = socket()
+        client.connect(("192.168.2.68", 8200))
+
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        print(email)
-        print(password)
+        
+        data = f"{email},{password}"
 
+        client.send(data.encode())
+
+        data = client.recv(1024).decode()
+        if data == "200":
+            print("Data input in database completed succesfully! ")
+        
+        else:
+            print("Try Again! ")
+            self.sizer.Add(wx.StaticText(self, label="Try Again"), 0, wx.ALIGN_BOTTOM, 100)
+        client.close()

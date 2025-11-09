@@ -10,6 +10,8 @@ class MyFrame(wx.Frame):
                  name="Main Page"):
         super(MyFrame, self).__init__(parent, id, title,
                                       pos, size, style, name)
+        
+
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
         self.pages = {}
