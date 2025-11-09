@@ -1,12 +1,11 @@
 import wx
 from socket import socket
+from hashlib import sha1
 
 
 class RegisterPage(wx.Panel):
     def __init__(self, parent, size):
         super(RegisterPage, self).__init__(parent, size=size)
-        client = socket()
-        client.connect(("192.168.2.68", 8200))
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -16,12 +15,23 @@ class RegisterPage(wx.Panel):
         self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL, 20)
 
         input_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.username = wx.TextCtrl(self, value="Username", size=(250, 25))
-        self.email = wx.TextCtrl(self, value="Email", size=(250, 25))
-        self.password = wx.TextCtrl(self, value="Pass", size=(250, 25))
-        input_sizer.Add(self.username, 0, wx.ALL, 20)
-        input_sizer.Add(self.email, 0, wx.ALL, 20)
-        input_sizer.Add(self.password, 0, wx.ALL, 20)
+        self.username = wx.TextCtrl(self, size=(250, 25))
+        self.email = wx.TextCtrl(self, size=(250, 25))
+        self.password = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
+        input_sizer.Add(wx.StaticText(self, label="Username"), 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.username, 0, wx.Left | wx.Right, 20)
+        self.error1 = wx.StaticText(self)
+        input_sizer.Add(self.error1, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
+        self.error2 = wx.StaticText(self)
+        input_sizer.Add(self.error2, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
+        self.error3 = wx.StaticText(self)
+        input_sizer.Add(self.error3, 0, wx.Left | wx.Right, 20)
+        self.error = wx.StaticText(self)
+        input_sizer.Add(self.error, 0, wx.Left | wx.Right, 20)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.sign = wx.Button(self, label="Sign In", size=(120, 40))
@@ -39,12 +49,15 @@ class RegisterPage(wx.Panel):
 
     def on_sign_in(self, event):
         client = socket()
-        client.connect(("192.168.2.68", 8200))
+        client.connect(("192.168.1.206", 8200))
+        client.send("register".encode())
+        print(client.recv(1024).decode())
 
         user = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        
+        password = sha1(password).hexdigest()
+
         data = f"{user},{email},{password}"
 
         client.send(data.encode())
@@ -55,5 +68,5 @@ class RegisterPage(wx.Panel):
         
         else:
             print("Try Again! ")
-            self.sizer.Add(wx.StaticText(self, label="Try Again"), 0, wx.ALIGN_BOTTOM, 100)
+            self.error.Label = "Try Again! "
         client.close()

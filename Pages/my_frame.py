@@ -1,7 +1,7 @@
 import wx
-from Pages.first_page import FirstPage
-from Pages.login_page import LoginPage
-from Pages.register_page import RegisterPage
+from first_page import FirstPage
+from login_page import LoginPage
+from register_page import RegisterPage
 
 
 class MyFrame(wx.Frame):
@@ -10,7 +10,6 @@ class MyFrame(wx.Frame):
                  name="Main Page"):
         super(MyFrame, self).__init__(parent, id, title,
                                       pos, size, style, name)
-        
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
