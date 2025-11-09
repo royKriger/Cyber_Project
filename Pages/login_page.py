@@ -1,5 +1,6 @@
 import wx
 from socket import socket
+from hashlib import sha1
 
 
 class LoginPage(wx.Panel):
@@ -14,10 +15,12 @@ class LoginPage(wx.Panel):
         self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL, 20)
 
         input_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.email = wx.TextCtrl(self, value="Email", size=(250, 25))
-        self.password = wx.TextCtrl(self, value="Pass", size=(250, 25), style=wx.TE_PASSWORD)
-        input_sizer.Add(self.email, 0, wx.ALL, 20)
-        input_sizer.Add(self.password, 0, wx.ALL, 20)
+        self.email = wx.TextCtrl(self, size=(250, 25))
+        self.password = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
+        input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
+        input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.log = wx.Button(self, label="Log In", size=(120, 40))
@@ -35,11 +38,14 @@ class LoginPage(wx.Panel):
 
     def on_log_in(self, event):
         client = socket()
-        client.connect(("192.168.2.68", 8200))
+        client.connect(("192.168.1.206", 8200))
+        client.send("login".encode())
+        print(client.recv(1024).decode())
 
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        
+        password = sha1(password).hexdigest()
+
         data = f"{email},{password}"
 
         client.send(data.encode())

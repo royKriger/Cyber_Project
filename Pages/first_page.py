@@ -1,6 +1,6 @@
 import wx
-from Pages.login_page import LoginPage
-from Pages.register_page import RegisterPage
+from login_page import LoginPage
+from register_page import RegisterPage
 
 
 class FirstPage(wx.Panel):
