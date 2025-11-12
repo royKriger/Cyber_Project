@@ -1,27 +1,36 @@
 import socket
 import sqlite3
 from threading import Thread
+import bcrypt
 
 
 def accept_client(client):
-    conn = sqlite3.Connection(r"C:\Users\Roy\Desktop\Cyber_Project\drive_db.sqlite")
+    conn = sqlite3.Connection(r"C:\Users\roykr\Desktop\Cyber_Project\drive_db.sqlite")
     
     conn_cur = conn.cursor()
 
-    data = client.recv(1024).decode()
+    type = client.recv(1024).decode()
     client.send("Connected To The Server! ".encode())
-    
-    if data == "login":
-        data = client.recv(1024).decode()
-        data = data.split(',')
-        email, password = data[0], data[1]
-        print(conn_cur.execute("SELECT Email FROM Users WHERE email='roy.kriger@gmail.com'"))
-    
-    if data == "register":
-        data = client.recv(1024).decode()
-        data = data.split(',')
-        user, email, password = data[0], data[1], data[2]
-        conn_cur.execute(f"SELECT Email FROM Users")
+    data = client.recv(4096).decode()
+    parts = data.split(',')
+
+    if type == "login":
+        email, password = parts[0], parts[1]
+        conn_cur.execute("SELECT Email FROM Users")
+        emails = conn_cur.fetchall()
+        if (email, ) in emails:
+            conn_cur.execute(f"SELECT Password FROM Users WHERE Email='{email}'")
+            db_pass = conn_cur.fetchone()[0]
+            if bcrypt.checkpw(password.encode(), db_pass.encode()):
+                client.send("200".encode())
+            else:
+                client.send("500".encode())
+        else:
+            client.send("500".encode())
+
+    if type == "register":
+        user, email, password = parts[0], parts[1], parts[2]
+        conn_cur.execute("SELECT Email FROM Users")
         emails = conn_cur.fetchall()
         if (email,) in emails:
             client.send("500".encode())
@@ -37,6 +46,7 @@ if __name__ == "__main__":
     server = socket.socket()
     server.bind(("0.0.0.0", 8200))
     server.listen(5)
-    (client, client_address) = server.accept()
-    handle = Thread(target=accept_client, args=(client, ))
-    handle.start()
+    while True:
+        (client, client_address) = server.accept()
+        handle = Thread(target=accept_client, args=(client, ))
+        handle.start()

@@ -1,6 +1,5 @@
 import wx
 from socket import socket
-from hashlib import sha1
 
 
 class LoginPage(wx.Panel):
@@ -19,14 +18,20 @@ class LoginPage(wx.Panel):
         self.password = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
         input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
+        self.error1 = wx.StaticText(self)
+        input_sizer.Add(self.error1, 0, wx.ALIGN_CENTER)
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
+        self.error2 = wx.StaticText(self)
+        input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
+        self.error = wx.StaticText(self)
+        input_sizer.Add(self.error, 0, wx.ALIGN_CENTER)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.log = wx.Button(self, label="Log In", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
         self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.home)
-        self.Bind(wx.EVT_BUTTON, self.on_log_in, self.log)
+        self.Bind(wx.EVT_BUTTON, lambda event, x=parent: self.on_log_in(event, parent=x), self.log)
         buttons_sizer.Add(self.log, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
@@ -36,25 +41,73 @@ class LoginPage(wx.Panel):
         self.Layout()
 
 
-    def on_log_in(self, event):
-        client = socket()
-        client.connect(("192.168.1.206", 8200))
-        client.send("login".encode())
-        print(client.recv(1024).decode())
-
+    def on_log_in(self, event, parent):
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        password = sha1(password).hexdigest()
 
-        data = f"{email},{password}"
+        flag = self.check_if_all_input_good(email, password)
 
-        client.send(data.encode())
+        if flag:
+            client = socket()
+            client.connect(("10.0.0.27", 8200))
+            client.send("login".encode())
+            print(client.recv(1024).decode())
 
-        data = client.recv(1024).decode()
-        if data == "200":
-            print("Data input in database completed succesfully! ")
-        
-        else:
-            print("Try Again! ")
-            self.sizer.Add(wx.StaticText(self, label="Try Again"), 0, wx.ALIGN_BOTTOM, 100)
-        client.close()
+            email = self.email.GetLineText(lineNo=0)
+            password = self.password.GetLineText(lineNo=0)
+
+            data = f"{email},{password}"
+
+            client.send(data.encode())
+
+            data = client.recv(1024).decode()
+            print(data)
+            if data == "200":
+                print("Login completed succesfully! ")
+                self.email.SetLabel("")
+                self.password.SetLabel("")
+                self.error.Label = "You're logged in! "
+                self.error.SetForegroundColour(wx.GREEN)
+                self.Layout()
+                #parent.show_frame(cur=self)
+            else:
+                self.error.Label = "Try Again! "
+                self.error.SetForegroundColour(wx.RED)
+                self.Layout()
+
+            client.close()
+
+
+    def check_if_all_input_good(self, email, password):
+        flag = self.check_email_input(email)
+        flag = self.check_password_input(password) and flag
+        email = self.email.GetLineText(lineNo=0)
+        password = self.password.GetLineText(lineNo=0)
+        return flag
+
+
+    def check_email_input(self, email):
+        if ".com" not in email:
+            self.error1.Label = "Invalid email! "
+            self.error1.SetForegroundColour(wx.RED)
+            self.error1.Layout()
+            return False
+        elif "@gmail" not in email:
+            self.error1.Label = "Invalid email! "
+            self.error1.SetForegroundColour(wx.RED)
+            self.error1.Layout()
+            return False
+        self.error1.Label = ""
+        self.error1.Layout()
+        return True
+
+
+    def check_password_input(self, password):
+        if len(password) < 4:
+            self.error2.Label = "Password length too short! "
+            self.error2.SetForegroundColour(wx.RED)
+            self.error2.Layout()
+            return False
+        self.error2.Label = ""
+        self.error2.Layout()
+        return True

@@ -1,7 +1,6 @@
 import wx
 from socket import socket
-from hashlib import sha1
-
+import bcrypt
 
 class RegisterPage(wx.Panel):
     def __init__(self, parent, size):
@@ -48,31 +47,73 @@ class RegisterPage(wx.Panel):
 
 
     def on_sign_in(self, event, parent):
-        client = socket()
-        client.connect(("192.168.1.206", 8200))
-        client.send("register".encode())
-        print(client.recv(1024).decode())
-
-        user = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        password = sha1(password.encode()).hexdigest()
 
-        data = f"{user},{email},{password}"
+        flag = self.check_if_all_input_good(email, password)
 
-        client.send(data.encode())
+        if flag:
+            user = self.username.GetLineText(lineNo=0)
+            email = self.email.GetLineText(lineNo=0)
+            password = self.password.GetLineText(lineNo=0)
 
-        data = client.recv(1024).decode()
-        if data == "200":
-            print("Data input in database completed succesfully! ")
-            self.username.SetLabel("")
-            self.email.SetLabel("")
-            self.password.SetLabel("")
-            parent.show_frame(cur=self)
+            client = socket()
+            client.connect(("10.0.0.27", 8200))
+            client.send("register".encode())
+            print(client.recv(1024).decode())
 
-        elif data == "500":
-            print("Operation was not succesful!")
-            self.error.Label = "Try Again! "
-            self.error.SetForegroundColour(wx.RED)
-            self.Layout()
-        client.close()
+            secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+            data = f"{user},{email},{secure_pass}"
+
+            client.send(data.encode())
+
+            data = client.recv(1024).decode()
+            if data == "200":
+                print("Data input in database completed succesfully! ")
+                self.username.SetLabel("")
+                self.email.SetLabel("")
+                self.password.SetLabel("")
+                parent.show_frame(cur=self)
+
+            elif data == "500":
+                print("Operation was not succesful!")
+                self.error.Label = "Try Again! "
+                self.error.SetForegroundColour(wx.RED)
+                self.Layout()
+            client.close()
+
+
+    def check_if_all_input_good(self, email, password):
+        flag = self.check_email_input(email)
+        flag = self.check_password_input(password) and flag
+        email = self.email.GetLineText(lineNo=0)
+        password = self.password.GetLineText(lineNo=0)
+        return flag
+
+
+    def check_email_input(self, email):
+        if ".com" not in email:
+            self.error2.Label = "Invalid email! "
+            self.error2.SetForegroundColour(wx.RED)
+            self.error2.Layout()
+            return False
+        elif "@gmail" not in email:
+            self.error2.Label = "Invalid email! "
+            self.error2.SetForegroundColour(wx.RED)
+            self.error2.Layout()
+            return False
+        self.error2.Label = ""
+        self.error2.Layout()
+        return True
+
+
+    def check_password_input(self, password):
+        if len(password) < 4:
+            self.error3.Label = "Password length too short! "
+            self.error3.SetForegroundColour(wx.RED)
+            self.error3.Layout()
+            return False
+        self.error3.Label = ""
+        self.error3.Layout()
+        return True
