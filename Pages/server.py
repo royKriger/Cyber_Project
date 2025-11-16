@@ -5,7 +5,7 @@ import bcrypt
 
 
 def accept_client(client):
-    conn = sqlite3.Connection(r"C:\Users\roykr\Desktop\Cyber_Project\drive_db.sqlite")
+    conn = sqlite3.Connection(r"C:\Users\Pc2\Desktop\Cyber_Project\drive_db.sqlite")
     
     conn_cur = conn.cursor()
 
@@ -33,7 +33,7 @@ def accept_client(client):
         conn_cur.execute("SELECT Email FROM Users")
         emails = conn_cur.fetchall()
         if (email,) in emails:
-            client.send("500".encode())
+            client.send("500 Email already exists!".encode())
         else:
             conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
     (user, email, password))

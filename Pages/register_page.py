@@ -1,6 +1,8 @@
 import wx
 from socket import socket
 import bcrypt
+from utilities import Utilities
+
 
 class RegisterPage(wx.Panel):
     def __init__(self, parent, size):
@@ -58,7 +60,7 @@ class RegisterPage(wx.Panel):
             password = self.password.GetLineText(lineNo=0)
 
             client = socket()
-            client.connect(("10.0.0.27", 8200))
+            client.connect((Utilities.get_pc_path(), 8200))
             client.send("register".encode())
             print(client.recv(1024).decode())
 
@@ -76,44 +78,17 @@ class RegisterPage(wx.Panel):
                 self.password.SetLabel("")
                 parent.show_frame(cur=self)
 
-            elif data == "500":
+            elif data.startswith("500"):
                 print("Operation was not succesful!")
-                self.error.Label = "Try Again! "
+                self.error.Label = data[3:]
                 self.error.SetForegroundColour(wx.RED)
                 self.Layout()
             client.close()
 
 
     def check_if_all_input_good(self, email, password):
-        flag = self.check_email_input(email)
-        flag = self.check_password_input(password) and flag
+        flag = Utilities.check_email_input(self, self.error2, email)
+        flag = Utilities.check_password_input(self, self.error3, password) and flag
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
         return flag
-
-
-    def check_email_input(self, email):
-        if ".com" not in email:
-            self.error2.Label = "Invalid email! "
-            self.error2.SetForegroundColour(wx.RED)
-            self.error2.Layout()
-            return False
-        elif "@gmail" not in email:
-            self.error2.Label = "Invalid email! "
-            self.error2.SetForegroundColour(wx.RED)
-            self.error2.Layout()
-            return False
-        self.error2.Label = ""
-        self.error2.Layout()
-        return True
-
-
-    def check_password_input(self, password):
-        if len(password) < 4:
-            self.error3.Label = "Password length too short! "
-            self.error3.SetForegroundColour(wx.RED)
-            self.error3.Layout()
-            return False
-        self.error3.Label = ""
-        self.error3.Layout()
-        return True

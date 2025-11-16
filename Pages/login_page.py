@@ -1,5 +1,6 @@
 import wx
 from socket import socket
+from utilities import Utilities
 
 
 class LoginPage(wx.Panel):
@@ -49,7 +50,7 @@ class LoginPage(wx.Panel):
 
         if flag:
             client = socket()
-            client.connect(("10.0.0.27", 8200))
+            client.connect((Utilities.get_pc_path(), 8200))
             client.send("login".encode())
             print(client.recv(1024).decode())
 
@@ -79,35 +80,8 @@ class LoginPage(wx.Panel):
 
 
     def check_if_all_input_good(self, email, password):
-        flag = self.check_email_input(email)
-        flag = self.check_password_input(password) and flag
+        flag = Utilities.check_email_input(self, self.error1, email)
+        flag = Utilities.check_password_input(self, self.error2, password) and flag
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
         return flag
-
-
-    def check_email_input(self, email):
-        if ".com" not in email:
-            self.error1.Label = "Invalid email! "
-            self.error1.SetForegroundColour(wx.RED)
-            self.error1.Layout()
-            return False
-        elif "@gmail" not in email:
-            self.error1.Label = "Invalid email! "
-            self.error1.SetForegroundColour(wx.RED)
-            self.error1.Layout()
-            return False
-        self.error1.Label = ""
-        self.error1.Layout()
-        return True
-
-
-    def check_password_input(self, password):
-        if len(password) < 4:
-            self.error2.Label = "Password length too short! "
-            self.error2.SetForegroundColour(wx.RED)
-            self.error2.Layout()
-            return False
-        self.error2.Label = ""
-        self.error2.Layout()
-        return True
