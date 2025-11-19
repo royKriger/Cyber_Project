@@ -1,12 +1,13 @@
 import wx
 from socket import socket
 from utilities import Utilities
+from user_page import UserPage
 
 
 class LoginPage(wx.Panel):
     def __init__(self, parent, size):
         super(LoginPage, self).__init__(parent, size=size)
-        
+        self.parent = parent
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.label = wx.StaticText(self, label="Loginnnnnn!")
@@ -34,8 +35,8 @@ class LoginPage(wx.Panel):
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.log = wx.Button(self, label="Log In", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
-        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.home)
-        self.Bind(wx.EVT_BUTTON, lambda event, x=parent: self.on_log_in(event, parent=x), self.log)
+        self.Bind(wx.EVT_BUTTON, lambda event: self.parent.show_frame(cur=self), self.home)
+        self.Bind(wx.EVT_BUTTON, lambda event: self.on_log_in(event), self.log)
         buttons_sizer.Add(self.log, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
@@ -45,7 +46,7 @@ class LoginPage(wx.Panel):
         self.Layout()
 
 
-    def on_log_in(self, event, parent):
+    def on_log_in(self, event):
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
 
@@ -53,7 +54,7 @@ class LoginPage(wx.Panel):
 
         if flag:
             client = socket()
-            client.connect((Utilities.get_pc_path(), 8200))
+            client.connect((Utilities.get_pc_ip(), 8200))
             client.send("login".encode())
             print(client.recv(1024).decode())
 
@@ -70,10 +71,15 @@ class LoginPage(wx.Panel):
                 print("Login completed succesfully! ")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
+                """
                 self.error.Label = "You're logged in! "
                 self.error.SetForegroundColour(wx.GREEN)
                 self.Layout()
-                #parent.show_frame(cur=self)
+                """
+                client.send(f"logged in,{email}".encode())
+                username = client.recv(1024).decode()
+                self.parent.show_user_frame(self, username)
+
             else:
                 self.error.Label = "Try Again! "
                 self.error.SetForegroundColour(wx.RED)

@@ -38,6 +38,13 @@ def accept_client(client):
             conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
     (user, email, password))
             client.send("200".encode())
+
+    type = client.recv(1024).decode()
+    if type.startswith("logged in"):
+        email = type.split(',')[1]
+        conn_cur.execute("SELECT User FROM Users WHERE Email=?", (email,))
+        username = conn_cur.fetchone()[0]
+        client.send(username.encode())
             
     conn.commit()
     conn.close()

@@ -7,7 +7,7 @@ from utilities import Utilities
 class RegisterPage(wx.Panel):
     def __init__(self, parent, size):
         super(RegisterPage, self).__init__(parent, size=size)
-
+        self.parent = parent
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.label = wx.StaticText(self, label="Registerrrrr!")
@@ -40,8 +40,8 @@ class RegisterPage(wx.Panel):
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.sign = wx.Button(self, label="Sign In", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
-        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.home)
-        self.Bind(wx.EVT_BUTTON, lambda event, x=parent: self.on_sign_in(event, parent=x), self.sign)
+        self.Bind(wx.EVT_BUTTON, lambda event: self.parent.show_frame(cur=self), self.home)
+        self.Bind(wx.EVT_BUTTON, lambda event: self.on_sign_in(event), self.sign)
         buttons_sizer.Add(self.sign, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
@@ -51,7 +51,7 @@ class RegisterPage(wx.Panel):
         self.Layout()
 
 
-    def on_sign_in(self, event, parent):
+    def on_sign_in(self, event):
         username = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
@@ -64,7 +64,7 @@ class RegisterPage(wx.Panel):
             password = self.password.GetLineText(lineNo=0)
 
             client = socket()
-            client.connect((Utilities.get_pc_path(), 8200))
+            client.connect((Utilities.get_pc_ip(), 8200))
             client.send("register".encode())
             print(client.recv(1024).decode())
 
@@ -80,7 +80,9 @@ class RegisterPage(wx.Panel):
                 self.username.SetLabel("")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
-                parent.show_frame(cur=self)
+                client.send(f"logged in,{email}".encode())
+                username = client.recv(1024).decode()
+                self.parent.show_user_frame(self, username)
 
             elif data.startswith("500"):
                 print("Operation was not succesful!")

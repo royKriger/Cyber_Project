@@ -2,6 +2,7 @@ import wx
 from first_page import FirstPage
 from login_page import LoginPage
 from register_page import RegisterPage
+from user_page import UserPage
 
 
 class MyFrame(wx.Frame):
@@ -10,6 +11,7 @@ class MyFrame(wx.Frame):
                  name="Main Page"):
         super(MyFrame, self).__init__(parent, id, title,
                                       pos, size, style, name)
+        self.size = size
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
@@ -32,6 +34,14 @@ class MyFrame(wx.Frame):
         frame = self.pages[page]
         if cur != None:
             cur.Hide()
+        frame.Show(True)
+        self.Layout()
+        self.Refresh()
+
+
+    def show_user_frame(self, cur, username):
+        frame = UserPage(self, self.size, username)
+        cur.Hide()
         frame.Show(True)
         self.Layout()
         self.Refresh()

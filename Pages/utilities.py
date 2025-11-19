@@ -3,8 +3,8 @@ import re
 
 
 class Utilities():
-    def get_pc_path():
-        return "192.168.1.228"
+    def get_pc_ip():
+        return "localhost"
     
 
     def check_user_input(self, label, username):
