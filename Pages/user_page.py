@@ -12,5 +12,17 @@ class UserPage(wx.Panel):
         self.label.SetFont(font)
         self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL, 20)
 
+        self.add = wx.Button(self, label="+ Add", size=(120, 70))
+        self.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialog(event), self.add)
+        self.sizer.Add(self.add, 0, wx.ALIGN_LEFT, 20)
+
         self.SetSizer(self.sizer)
         self.Layout()
+
+
+    def open_dir_dialog(self, event):
+        dir_dialog = wx.FileDialog(self)
+        file_path = dir_dialog.GetPath()
+
+        
+

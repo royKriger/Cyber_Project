@@ -30,7 +30,7 @@ class RegisterPage(wx.Panel):
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
         self.show_password = wx.CheckBox(self, label="Show Password")
-        self.show_password.Bind(wx.EVT_CHECKBOX,lambda event: Utilities.on_check(self.password, self.show_password))
+        self.Bind(wx.EVT_CHECKBOX,lambda event: Utilities.on_check(self.password, self.show_password), self.show_password)
         input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
         self.error3 = wx.StaticText(self)
         input_sizer.Add(self.error3, 0, wx.ALIGN_CENTER)
