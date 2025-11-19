@@ -29,6 +29,9 @@ class RegisterPage(wx.Panel):
         input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
+        self.show_password = wx.CheckBox(self, label="Show Password")
+        self.show_password.Bind(wx.EVT_CHECKBOX,lambda event: Utilities.on_check(self.password, self.show_password))
+        input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
         self.error3 = wx.StaticText(self)
         input_sizer.Add(self.error3, 0, wx.ALIGN_CENTER)
         self.error = wx.StaticText(self)
@@ -49,10 +52,11 @@ class RegisterPage(wx.Panel):
 
 
     def on_sign_in(self, event, parent):
+        username = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
 
-        flag = self.check_if_all_input_good(email, password)
+        flag = self.check_if_all_input_good(username, email, password)
 
         if flag:
             user = self.username.GetLineText(lineNo=0)
@@ -86,9 +90,11 @@ class RegisterPage(wx.Panel):
             client.close()
 
 
-    def check_if_all_input_good(self, email, password):
-        flag = Utilities.check_email_input(self, self.error2, email)
+    def check_if_all_input_good(self, username, email, password):
+        flag = Utilities.check_user_input(self, self.error1, username)
+        flag = Utilities.check_email_input(self, self.error2, email) and flag
         flag = Utilities.check_password_input(self, self.error3, password) and flag
+        username = self.username.GetLineText(lineNo=0)
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
         return flag
