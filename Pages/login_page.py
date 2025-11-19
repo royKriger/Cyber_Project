@@ -1,7 +1,6 @@
 import wx
 from socket import socket
 from utilities import Utilities
-from user_page import UserPage
 
 
 class LoginPage(wx.Panel):
