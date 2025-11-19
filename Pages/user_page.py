@@ -1,6 +1,4 @@
 import wx
-import socket
-from utilities import Utilities 
 
 
 class UserPage(wx.Panel):
