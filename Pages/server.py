@@ -5,7 +5,7 @@ import bcrypt
 
 
 def accept_client(client):
-    conn = sqlite3.Connection(r"C:\Users\Pc2\Desktop\Cyber_Project\drive_db.sqlite")
+    conn = sqlite3.Connection(r"C:\Users\roykr\Cyber_Project\Cyber_Project\drive_db.sqlite")
     
     conn_cur = conn.cursor()
 

@@ -80,22 +80,34 @@ class Utilities():
         return True
 
 
-    def on_check(self, password_input, checkbox):
+    def on_check(parent, password_input, checkbox):
         password = password_input.GetLineText(lineNo=0)
         input_sizer = password_input.GetContainingSizer()
-        index = input_sizer.GetItemIndex(self.password)
+        index = Utilities.get_item_index(input_sizer, password_input)
+
+        if index == -1:
+            return password_input
 
         input_sizer.Hide(index)
         input_sizer.Remove(index)
         password_input.Destroy()
 
         if checkbox.IsChecked():
-            password_input = wx.TextCtrl(self, size=(250, 25))
+            new_ctrl = wx.TextCtrl(parent, size=(250, 25), value=password)
         else:
-            password_input = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
-
-        password_input.SetValue = password
+            new_ctrl = wx.TextCtrl(parent, size=(250, 25), value=password, style=wx.TE_PASSWORD)
         
-        input_sizer.Insert(index, password_input, 0, wx.Left | wx.Right, 20)
+        input_sizer.Insert(index, new_ctrl, 0, wx.Left | wx.Right, 20)
 
-        self.Layout()
+        parent.Layout()
+
+        return new_ctrl
+
+    @staticmethod
+    def get_item_index(sizer, window):
+        for i in range(sizer.GetItemCount()):
+            item = sizer.GetItem(i)
+            if item and item.GetWindow() is window:
+                return i
+        return -1
+    
