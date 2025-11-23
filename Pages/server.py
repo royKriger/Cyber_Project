@@ -2,6 +2,7 @@ import socket
 import sqlite3
 from threading import Thread
 import bcrypt
+from utilities import Utilities
 
 
 def accept_client(client):
@@ -38,6 +39,7 @@ def accept_client(client):
             conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
     (user, email, password))
             client.send("200".encode())
+            with open(f"{Utilities.generate_id(email.split('@')[0])}") as file:
 
     type = client.recv(1024).decode()
     if type.startswith("logged in"):

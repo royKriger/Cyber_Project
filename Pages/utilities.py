@@ -1,10 +1,16 @@
 import wx
 import re
+import os
+from hashlib import sha256
 
 
 class Utilities():
     def get_pc_ip():
         return "localhost"
+    
+
+    def get_pc_path():
+        return "C:\Users\Pc2\Cyber_Project\Pages\register_page.py"
     
 
     def check_user_input(self, label, username):
@@ -110,4 +116,10 @@ class Utilities():
             if item and item.GetWindow() is window:
                 return i
         return -1
+    
+
+    def generate_id(st):
+        part = st.split('@')[0]
+        id = sha256(part).hexdigest()
+        return id
     

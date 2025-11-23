@@ -19,14 +19,17 @@ class RegisterPage(wx.Panel):
         self.username = wx.TextCtrl(self, size=(250, 25))
         self.email = wx.TextCtrl(self, size=(250, 25))
         self.password = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
+        
         input_sizer.Add(wx.StaticText(self, label="Username"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.username, 0, wx.Left | wx.Right, 20)
         self.error1 = wx.StaticText(self)
         input_sizer.Add(self.error1, 0, wx.ALIGN_CENTER)
+
         input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
         self.error2 = wx.StaticText(self)
         input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
+        
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
         self.show_password = wx.CheckBox(self, label="Show Password")
