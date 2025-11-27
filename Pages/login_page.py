@@ -70,11 +70,6 @@ class LoginPage(wx.Panel):
                 print("Login completed succesfully! ")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
-                """
-                self.error.Label = "You're logged in! "
-                self.error.SetForegroundColour(wx.GREEN)
-                self.Layout()
-                """
                 client.send(f"logged in,{email}".encode())
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
