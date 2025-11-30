@@ -2,6 +2,7 @@ import wx
 from socket import socket
 import bcrypt
 from utilities import Utilities
+from cryptography.hazmat.primitives import serialization
 
 
 class RegisterPage(wx.Panel):
@@ -69,13 +70,17 @@ class RegisterPage(wx.Panel):
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send("register".encode())
-            print(client.recv(1024).decode())
+            data = client.recv(1024).decode()
+            print(data)
+            public_key_pem = client.recv(2048)
+            public_key = serialization.load_pem_public_key(public_key_pem)  
 
             secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
             data = f"{user},{email},{secure_pass}"
+            encrypt_data = Utilities.encrypt(data.encode(), public_key)
 
-            client.send(data.encode())
+            client.sendall(encrypt_data)
 
             data = client.recv(1024).decode()
             if data == "200":
@@ -83,7 +88,9 @@ class RegisterPage(wx.Panel):
                 self.username.SetLabel("")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
-                client.send(f"logged in,{email}".encode())
+                data = f"logged in,{email}"
+                encrypt_data = Utilities.encrypt(data.encode(), public_key)
+                client.sendall(encrypt_data)
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
 

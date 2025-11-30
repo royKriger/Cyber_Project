@@ -1,16 +1,13 @@
 import wx
 import re
-import os
 from hashlib import sha256
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
 
 
 class Utilities():
     def get_pc_ip():
         return "localhost"
-    
-
-    def get_pc_path():
-        return "C:\Users\Pc2\Cyber_Project\Pages\register_page.py"
     
 
     def check_user_input(self, label, username):
@@ -118,8 +115,15 @@ class Utilities():
         return -1
     
 
-    def generate_id(st):
-        part = st.split('@')[0]
-        id = sha256(part).hexdigest()
-        return id
+    def encrypt(message: bytes, key):
+        encrypted_message = key.encrypt(
+            message,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        return encrypted_message
     

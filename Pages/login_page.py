@@ -1,6 +1,8 @@
 import wx
 from socket import socket
+import bcrypt
 from utilities import Utilities
+from cryptography.hazmat.primitives import serialization
 
 
 class LoginPage(wx.Panel):
@@ -52,17 +54,22 @@ class LoginPage(wx.Panel):
         flag = self.check_if_all_input_good(email, password)
 
         if flag:
+            email = self.email.GetLineText(lineNo=0)
+            password = self.password.GetLineText(lineNo=0)
+
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send("login".encode())
             print(client.recv(1024).decode())
+            public_key_pem = client.recv(2048)
+            public_key = serialization.load_pem_public_key(public_key_pem)  
 
-            email = self.email.GetLineText(lineNo=0)
-            password = self.password.GetLineText(lineNo=0)
+            secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-            data = f"{email},{password}"
+            data = f"{email},{secure_pass}"
+            encrypt_data = Utilities.encrypt(data.encode(), public_key)
 
-            client.send(data.encode())
+            client.sendall(encrypt_data)
 
             data = client.recv(1024).decode()
             print(data)
@@ -70,7 +77,9 @@ class LoginPage(wx.Panel):
                 print("Login completed succesfully! ")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
-                client.send(f"logged in,{email}".encode())
+                data = f"logged in,{email}"
+                encrypt_data = Utilities.encrypt(data, public_key)
+                client.send(encrypt_data.encode())
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
 
