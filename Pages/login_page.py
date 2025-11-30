@@ -1,7 +1,5 @@
 import wx
 from socket import socket
-import base64
-import bcrypt
 from utilities import Utilities
 from cryptography.hazmat.primitives import serialization
 
