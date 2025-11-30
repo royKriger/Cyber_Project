@@ -1,5 +1,6 @@
 import wx
 from socket import socket
+import base64
 import bcrypt
 from utilities import Utilities
 from cryptography.hazmat.primitives import serialization
@@ -64,12 +65,10 @@ class LoginPage(wx.Panel):
             public_key_pem = client.recv(2048)
             public_key = serialization.load_pem_public_key(public_key_pem)  
 
-            secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            data = f"{email},{password}"
+            encrypted_data = Utilities.encrypt(data.encode(), public_key)
 
-            data = f"{email},{secure_pass}"
-            encrypt_data = Utilities.encrypt(data.encode(), public_key)
-
-            client.sendall(encrypt_data)
+            client.sendall(encrypted_data)
 
             data = client.recv(1024).decode()
             print(data)
@@ -78,8 +77,8 @@ class LoginPage(wx.Panel):
                 self.email.SetLabel("")
                 self.password.SetLabel("")
                 data = f"logged in,{email}"
-                encrypt_data = Utilities.encrypt(data, public_key)
-                client.send(encrypt_data.encode())
+                encrypted_data = Utilities.encrypt(data.encode(), public_key)
+                client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
 

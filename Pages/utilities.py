@@ -1,6 +1,5 @@
 import wx
 import re
-from hashlib import sha256
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 

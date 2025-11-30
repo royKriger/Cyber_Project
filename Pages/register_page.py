@@ -1,6 +1,7 @@
 import wx
 from socket import socket
 import bcrypt
+import base64
 from utilities import Utilities
 from cryptography.hazmat.primitives import serialization
 
@@ -75,12 +76,12 @@ class RegisterPage(wx.Panel):
             public_key_pem = client.recv(2048)
             public_key = serialization.load_pem_public_key(public_key_pem)  
 
-            secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-            data = f"{user},{email},{secure_pass}"
-            encrypt_data = Utilities.encrypt(data.encode(), public_key)
+            data = f"{user},{email},{base64.b64encode(secure_pass).decode()}"
+            encrypted_data = Utilities.encrypt(data.encode(), public_key)
 
-            client.sendall(encrypt_data)
+            client.sendall(encrypted_data)
 
             data = client.recv(1024).decode()
             if data == "200":
@@ -89,12 +90,12 @@ class RegisterPage(wx.Panel):
                 self.email.SetLabel("")
                 self.password.SetLabel("")
                 data = f"logged in,{email}"
-                encrypt_data = Utilities.encrypt(data.encode(), public_key)
-                client.sendall(encrypt_data)
+                encrypted_data = Utilities.encrypt(data.encode(), public_key)
+                client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
 
-            elif data.startswith("500"):
+            elif data == "500":
                 print("Operation was not succesful!")
                 self.error.Label = data[3:]
                 self.error.SetForegroundColour(wx.RED)
