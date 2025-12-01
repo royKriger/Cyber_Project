@@ -15,6 +15,11 @@ class UserPage(wx.Panel):
         self.add = wx.Button(self, label="+ Add", size=(120, 70))
         self.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialog(event), self.add)
         self.sizer.Add(self.add, 0, wx.ALIGN_LEFT, 20)
+    
+        self.disconenect = wx.Button(self, label="Disconnect", size=(150, 80))
+        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.disconenect)
+        self.sizer.Add((-1, -1), 0, wx.EXPAND)
+        self.sizer.Add(self.disconenect, 0, wx.ALIGN_RIGHT, 75)
 
         self.SetSizer(self.sizer)
         self.Layout()

@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 
 def accept_client(client, private_key, public_key):
-    conn = sqlite3.Connection(r"C:\Users\Roy\Desktop\Cyber_Project\drive_db.sqlite")
+    conn = sqlite3.Connection(r"C:\Users\roykr\Cyber_Project\drive_db.sqlite")
     
     conn_cur = conn.cursor()
     
