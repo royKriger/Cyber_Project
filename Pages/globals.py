@@ -1,0 +1,3 @@
+globals = {
+    "logged in": []
+}

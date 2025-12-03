@@ -58,10 +58,12 @@ class LoginPage(wx.Panel):
 
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
+            client.send("Log in".encode())
+            client.recv(1024).decode()
             client.send("login".encode())
             print(client.recv(1024).decode())
             public_key_pem = client.recv(2048)
-            public_key = serialization.load_pem_public_key(public_key_pem)  
+            public_key = serialization.load_pem_public_key(public_key_pem)
 
             data = f"{email},{password}"
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
@@ -69,8 +71,7 @@ class LoginPage(wx.Panel):
             client.sendall(encrypted_data)
 
             data = client.recv(1024).decode()
-            print(data)
-            if data == "200":
+            if data == ("200"):
                 print("Login completed succesfully! ")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
@@ -81,7 +82,8 @@ class LoginPage(wx.Panel):
                 self.parent.show_user_frame(self, username)
 
             else:
-                self.error.Label = "Try Again! "
+                print("Operation was not succesful!")
+                self.error.Label = data.split("|")[-1]
                 self.error.SetForegroundColour(wx.RED)
                 self.Layout()
 

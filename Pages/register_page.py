@@ -43,7 +43,7 @@ class RegisterPage(wx.Panel):
         input_sizer.Add(self.error, 0, wx.ALIGN_CENTER)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sign = wx.Button(self, label="Sign In", size=(120, 40))
+        self.sign = wx.Button(self, label="Sign Up", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
         self.Bind(wx.EVT_BUTTON, lambda event: self.parent.show_frame(cur=self), self.home)
         self.Bind(wx.EVT_BUTTON, lambda event: self.on_sign_in(event), self.sign)
@@ -70,9 +70,10 @@ class RegisterPage(wx.Panel):
 
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
+            client.send("Sign up".encode())
+            client.recv(1024).decode()
             client.send("register".encode())
-            data = client.recv(1024).decode()
-            print(data)
+            print(client.recv(1024).decode())
             public_key_pem = client.recv(2048)
             public_key = serialization.load_pem_public_key(public_key_pem)  
 
@@ -95,9 +96,9 @@ class RegisterPage(wx.Panel):
                 username = client.recv(1024).decode()
                 self.parent.show_user_frame(self, username)
 
-            elif data == "500":
+            else:
                 print("Operation was not succesful!")
-                self.error.Label = data[3:]
+                self.error.Label = data.split("|")[-1]
                 self.error.SetForegroundColour(wx.RED)
                 self.Layout()
             client.close()

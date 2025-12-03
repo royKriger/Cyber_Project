@@ -41,6 +41,7 @@ class MyFrame(wx.Frame):
 
     def show_user_frame(self, cur, username):
         frame = UserPage(self, self.size, username)
+        self.sizer.Add(frame, proportion=1, flag=wx.EXPAND | wx.ALL)
         self.pages[frame] = frame
         cur.Hide()
         frame.Show(True)
