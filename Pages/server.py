@@ -46,7 +46,7 @@ def accept_client(client, private_key, public_key):
             db_pass = conn_cur.fetchone()[0]
             if not bcrypt.checkpw(password.encode(), db_pass):
                 data = "500|Password or email not correct! "
-            return
+                return
         else:
             data = "500|Email does not exist! "
             return
