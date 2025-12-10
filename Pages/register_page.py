@@ -17,19 +17,25 @@ class RegisterPage(wx.Panel):
         self.label.SetFont(font)
         self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL, 20)
 
+        self.inputs = []
         input_sizer = wx.BoxSizer(wx.VERTICAL)
         self.username = wx.TextCtrl(self, size=(250, 25))
         self.email = wx.TextCtrl(self, size=(250, 25))
         self.password = wx.TextCtrl(self, size=(250, 25), style=wx.TE_PASSWORD)
-        
+        self.inputs.append(self.username)        
+        self.inputs.append(self.email)
+        self.inputs.append(self.password)
+
         input_sizer.Add(wx.StaticText(self, label="Username"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.username, 0, wx.Left | wx.Right, 20)
         self.error1 = wx.StaticText(self)
+        self.inputs.append(self.error1)
         input_sizer.Add(self.error1, 0, wx.ALIGN_CENTER)
 
         input_sizer.Add(wx.StaticText(self, label="Email"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.email, 0, wx.Left | wx.Right, 20)
         self.error2 = wx.StaticText(self)
+        self.inputs.append(self.error2)
         input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
         
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
@@ -38,14 +44,17 @@ class RegisterPage(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, lambda event: self.check_helper(event), self.show_password)
         input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
         self.error3 = wx.StaticText(self)
+        self.inputs.append(self.error3)
         input_sizer.Add(self.error3, 0, wx.ALIGN_CENTER)
+        
         self.error = wx.StaticText(self)
         input_sizer.Add(self.error, 0, wx.ALIGN_CENTER)
+        self.inputs.append(self.error)
 
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
         self.sign = wx.Button(self, label="Sign Up", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
-        self.Bind(wx.EVT_BUTTON, lambda event: self.parent.show_frame(cur=self), self.home)
+        self.Bind(wx.EVT_BUTTON, lambda event: Utilities.go_home(self, self.parent, self.inputs), self.home)
         self.Bind(wx.EVT_BUTTON, lambda event: self.on_sign_in(event), self.sign)
         buttons_sizer.Add(self.sign, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
@@ -71,7 +80,7 @@ class RegisterPage(wx.Panel):
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send("Sign up".encode())
-            client.recv(1024).decode()
+            client.recv(1024)
             client.send("register".encode())
             print(client.recv(1024).decode())
             public_key_pem = client.recv(2048)

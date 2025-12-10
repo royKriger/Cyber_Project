@@ -27,16 +27,16 @@ class Utilities():
             label.Label = "Enter an email! "
             self.Layout()
             return False
+        elif "@gmail" not in email:
+            label.Label = "Must inclue @gmail! "
+            self.Layout()
+            return False
         elif re.search("[! @ # $ % ^ & *]", email[0:email.index('@')]) is not None:
             label.Label = "Email cannot contain special letters! "
             self.Layout()
             return False
         elif email.count('@') > 1:
             label.Label = "Email cannot contain more than one @! "
-            self.Layout()
-            return False
-        elif "@gmail" not in email:
-            label.Label = "Must inclue @gmail! "
             self.Layout()
             return False
         elif ".com" not in email:
@@ -126,3 +126,11 @@ class Utilities():
 
         return encrypted_message
     
+
+    def go_home(cur, parent, inputs):
+        for input in inputs:
+            try:
+                input.SetLabel("")
+            except Exception as e:
+                print(e)
+        parent.show_frame(cur=cur)
