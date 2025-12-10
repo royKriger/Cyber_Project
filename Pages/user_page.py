@@ -9,12 +9,6 @@ class UserPage(wx.Panel):
         self.parent = parent
         self.username = username
 
-        self.client = socket.socket()
-        self.client.connect((Utilities.get_pc_ip(), 8200))
-        self.client.send("Logged in".encode())
-        self.client.recv(1024)
-        self.client.send(username.encode())
-
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.label = wx.StaticText(self, label=f"Welcome {username}!")
@@ -29,7 +23,7 @@ class UserPage(wx.Panel):
         self.sizer.AddStretchSpacer(1)
 
         self.disconnect = wx.Button(self, label="Disconnect", size=(150, 80))
-        self.Bind(wx.EVT_BUTTON, lambda event: self.disconnect_client(), self.disconnect)
+        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.disconnect)
         self.sizer.Add(self.disconnect, 0, wx.ALIGN_RIGHT | wx.BOTTOM)
 
         self.SetSizer(self.sizer)
@@ -37,29 +31,56 @@ class UserPage(wx.Panel):
 
 
     def open_dir_dialoge(self, event):
-        file_dialog = wx.FileDialog(None, "Select a file or folder")
-        if file_dialog.ShowModal() == wx.ID_OK:
-            file_path = file_dialog.GetPath()
-            print(file_path)
-            file_name = file_path.split("\\")[-1]
-            print(file_name)
-            print("waisbhd")
-        try:
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Logged in".encode())
+
+        client.recv(1024)
+        client.send(self.username.encode())
+        
+        file_dialog = wx.FileDialog(self, "Select a file or folder")
+        if file_dialog.ShowModal() != wx.ID_OK:
+            return
+        
+        file_path = file_dialog.GetPath()
+        file_name = file_path.split("\\")[-1]
+        client.recv(1024)
+        client.send(file_name.encode())
+        client.recv(1024)
+
+        if self.is_txt(file_name):
             with open(file_path, "r") as file:
-                lines = file.readline
+                lines = file.readlines()
                 content = ""
                 for line in lines:
                     content += line
-                print(content)
-                self.client.send(content.encode())
-        except Exception as e:
-            print(e)
 
+                length = len(content) // 1024 + 1
+                client.send(str(length).encode())
+                client.recv(1024)
+
+                for i in range(length):
+                    client.send(content.encode())
+
+        elif self.is_image(file_name):
+            with open(file_path, "rb") as file:
+                image_bytes = file.read()
+
+                length = len(image_bytes) // 1024 + 1
+                client.send(str(length).encode())
+                client.recv(1024)
+
+                client.send(image_bytes)
+
+
+    @staticmethod
+    def is_image(file_name):
+        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
     
-    def disconnect_client(self):
-        self.client.send("Log out".encode())
-        self.client.close()
-        self.parent.show_frame()
+
+    @staticmethod
+    def is_txt(file_name):
+        return file_name.endswith("TXT") or file_name.endswith("txt") or file_name.endswith("py")
 
 
 class DropTarget(wx.FileDropTarget):

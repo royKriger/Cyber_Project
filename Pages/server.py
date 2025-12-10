@@ -14,8 +14,8 @@ class Server():
         self.server = socket.socket()
         self.server.bind(("0.0.0.0", 8200))
         self.server.listen(5)
-        self.path = r"C:\Users\Pc2\Desktop\Cyber_Project\ServerFiles"
-        self.database = r"C:\Users\Pc2\Desktop\Cyber_Project\drive_db.sqlite"
+        self.path = r"C:\Users\roykr\Cyber_Project\ServerFiles"
+        self.database = r"C:\Users\roykr\Cyber_Project\drive_db.sqlite"
 
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -42,8 +42,10 @@ class Server():
                         all_sock.remove(sock)
                         sock.close()
                     else:
-                        sock.send("Joules^3".encode())
+                        sock.send("Joules^2".encode())
                         self.handle_client(sock, self.private_key, self.public_key)
+                        all_sock.remove(sock)
+                        sock.close()
 
 
     def accept_client(self, client, private_key, public_key):
@@ -89,12 +91,18 @@ class Server():
             user, email, password = decrypted_data[0], decrypted_data[1], base64.b64decode(decrypted_data[2])
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
-            if (email,) in emails:
+            conn_cur.execute("SELECT User FROM Users")
+            users = conn_cur.fetchall()
+            if (user,) in users:
+                data = "500|Username already exists! "
+            elif user == "Admin":
+                data = "500|Can't have this username! "
+            elif (email,) in emails:
                 data = "500|Email already exists! "
             else:
                 conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
         (user, email, password))
-                os.mkdir(f"{self.path}\{email.split('@')[0]}")
+                os.mkdir(f"{self.path}\\{email.split('@')[0]}")
 
         client.send(data.encode())
         if data.startswith("500"):
@@ -122,7 +130,43 @@ class Server():
 
 
     def handle_client(self, client, private_key, public_key):
-        username = client.recv(1024).decode()
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
 
+        username = client.recv(1024).decode()
+        client.send("Joules^3".encode())
+
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+
+        file_name = fr"{email}\{client.recv(1024).decode()}"
+        client.send("Joules^4".encode())
+        length = int(client.recv(1024).decode())
+        client.send("Joules^5".encode())
+
+        if self.is_txt(file_name):
+            content = ""
+            with open(fr"{self.path}\{file_name}", 'w') as file:
+                for i in range(length):
+                    content += client.recv(1024).decode()
+                file.write(content)
+
+        if self.is_image(file_name):
+            content = b''
+            with open(fr"{self.path}\{file_name}", 'wb') as file:
+                for i in range(length):
+                    content += client.recv(1024)
+                file.write(content)
+
+        
+    @staticmethod
+    def is_image(file_name):
+        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
+    
+
+    @staticmethod
+    def is_txt(file_name):
+        return file_name.endswith("TXT") or file_name.endswith("txt") or file_name.endswith("py")
+    
 
 server = Server()
