@@ -1,6 +1,7 @@
 import wx
 import socket
 from utilities import Utilities
+from cryptography.hazmat.primitives import serialization
 
 
 class UserPage(wx.Panel):
@@ -35,8 +36,13 @@ class UserPage(wx.Panel):
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send("Logged in".encode())
 
-        client.recv(1024)
-        client.send(self.username.encode())
+        public_key_pem = client.recv(2048)
+        public_key = serialization.load_pem_public_key(public_key_pem)
+
+        data = self.username
+        encrypted_data = Utilities.encrypt(data.encode(), public_key)
+
+        client.sendall(encrypted_data)
         
         file_dialog = wx.FileDialog(self, "Select a file or folder")
         if file_dialog.ShowModal() != wx.ID_OK:
@@ -45,7 +51,8 @@ class UserPage(wx.Panel):
         file_path = file_dialog.GetPath()
         file_name = file_path.split("\\")[-1]
         client.recv(1024)
-        client.send(file_name.encode())
+        encrypted_data = Utilities.encrypt(file_name.encode(), public_key)
+        client.sendall(encrypted_data)
         client.recv(1024)
 
         if self.is_txt(file_name):
@@ -55,27 +62,36 @@ class UserPage(wx.Panel):
                 for line in lines:
                     content += line
 
-                length = len(content) // 1024 + 1
+                length = len(content) // 190 + 1
                 client.send(str(length).encode())
                 client.recv(1024)
 
-                for i in range(length):
-                    client.send(content.encode())
+                encrypted_file = b''
+                for i in range(0, len(content), 190):
+                    chunk = content[i: i + 190]
+                    encrypted_file += Utilities.encrypt(chunk.encode(), public_key)
+
+                client.sendall(encrypted_file)
 
         elif self.is_image(file_name):
             with open(file_path, "rb") as file:
                 image_bytes = file.read()
 
-                length = len(image_bytes) // 1024 + 1
+                length = len(image_bytes) // 190 + 1
                 client.send(str(length).encode())
                 client.recv(1024)
 
-                client.send(image_bytes)
+                encrypted_image = b''
+                for i in range(0, len(image_bytes), 190):
+                    chunk = image_bytes[i:i + 190]
+                    encrypted_image += Utilities.encrypt(chunk, public_key)
+
+                client.sendall(encrypted_image)
 
 
     @staticmethod
     def is_image(file_name):
-        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
+        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png") or file_name.endswith("gif")
     
 
     @staticmethod

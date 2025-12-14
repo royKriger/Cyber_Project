@@ -114,7 +114,7 @@ class Utilities():
         return -1
     
 
-    def encrypt(message: bytes, key):
+    def encrypt(message: bytes, key) -> bytes:
         encrypted_message = key.encrypt(
             message,
             padding.OAEP(

@@ -14,8 +14,8 @@ class Server():
         self.server = socket.socket()
         self.server.bind(("0.0.0.0", 8200))
         self.server.listen(5)
-        self.path = r"C:\Users\roykr\Cyber_Project\ServerFiles"
-        self.database = r"C:\Users\roykr\Cyber_Project\drive_db.sqlite"
+        self.path = r"C:\Users\Roy\Cyber_Project\ServerFiles"
+        self.database = r"C:\Users\Roy\Cyber_Project\drive_db.sqlite"
 
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -42,7 +42,6 @@ class Server():
                         all_sock.remove(sock)
                         sock.close()
                     else:
-                        sock.send("Joules^2".encode())
                         self.handle_client(sock, self.private_key, self.public_key)
                         all_sock.remove(sock)
                         sock.close()
@@ -133,35 +132,87 @@ class Server():
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
-        username = client.recv(1024).decode()
-        client.send("Joules^3".encode())
+        public_key_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
 
+        client.sendall(public_key_pem)
+        encrypted_data = client.recv(4096)
+
+        decrypted_bytes = private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        client.send("Joules^2".encode())
+
+        username = decrypted_bytes.decode()
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        file_name = fr"{email}\{client.recv(1024).decode()}"
-        client.send("Joules^4".encode())
+        encrypted_data = client.recv(4096)
+
+        decrypted_bytes = private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        file_name = fr"{email}\{decrypted_bytes.decode()}"
+        client.send("Joules^3".encode())
         length = int(client.recv(1024).decode())
-        client.send("Joules^5".encode())
+        client.send("Joules^4".encode())
 
         if self.is_txt(file_name):
-            content = ""
+            encrypted_file = b''
             with open(fr"{self.path}\{file_name}", 'w') as file:
                 for i in range(length):
-                    content += client.recv(1024).decode()
-                file.write(content)
+                    encrypted_file += client.recv(1024)
+
+                decrypted_file = b''
+                for i in range(0, len(encrypted_file), 256):
+                    chunk = encrypted_file[i:i + 256]
+                    decrypted_file += private_key.decrypt(
+                        chunk,
+                        padding.OAEP(
+                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                            algorithm=hashes.SHA256(),
+                            label=None
+                        )
+                    )
+                decrypted_file = decrypted_file.decode()
+                file.write(decrypted_file)
 
         if self.is_image(file_name):
-            content = b''
+            encrypted_image = b''
             with open(fr"{self.path}\{file_name}", 'wb') as file:
                 for i in range(length):
-                    content += client.recv(1024)
-                file.write(content)
+                    encrypted_image += client.recv(1024)
+
+                decrypted_image = b''
+                for i in range(0, len(encrypted_image), 256):
+                    chunk = encrypted_image[i:i + 256]
+                    decrypted_image += private_key.decrypt(
+                        chunk,
+                        padding.OAEP(
+                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                            algorithm=hashes.SHA256(),
+                            label=None
+                        )
+                    )
+
+                file.write(decrypted_image)
 
         
     @staticmethod
     def is_image(file_name):
-        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
+        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png") or file_name.endswith("gif")
     
 
     @staticmethod
