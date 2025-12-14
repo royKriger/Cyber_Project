@@ -154,7 +154,11 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        encrypted_data = client.recv(4096)
+        try:
+            encrypted_data = client.recv(4096)
+        except:
+            client.close()
+            return
 
         decrypted_bytes = private_key.decrypt(
             encrypted_data,
