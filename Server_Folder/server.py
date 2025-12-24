@@ -247,7 +247,7 @@ class Server():
 
         folder_names = []
         file_names = []
-        path = f"{self.path}\{email}"
+        path = fr"{self.path}\{email}"
         for item in os.listdir(path):
             full_path = os.path.join(path, item)
             if os.path.isdir(full_path):
