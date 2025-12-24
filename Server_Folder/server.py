@@ -14,8 +14,8 @@ class Server():
         self.server = socket.socket()
         self.server.bind(("0.0.0.0", 8200))
         self.server.listen(5)
-        self.path = r"C:\Users\Roy\Cyber_Project\ServerFiles"
-        self.database = r"C:\Users\Roy\Cyber_Project\drive_db.sqlite"
+        self.path = r"Server_Folder\ServerFiles"
+        self.database = r"Server_Folder\drive_db.sqlite"
 
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -26,7 +26,7 @@ class Server():
         self.public_key = self.private_key.public_key()
 
         all_sock = [self.server]
-        while True:
+        while self.server:
             rList, wList, xList = select.select(all_sock, all_sock, [])
             for sock in rList:
                 if sock == self.server:
@@ -39,6 +39,16 @@ class Server():
                         self.accept_client(sock, self.private_key, self.public_key)
                         all_sock.remove(sock)
                     elif request == "Log out":
+                        all_sock.remove(sock)
+                        sock.close()
+                    elif request == "Get email":
+                        sock.send("Joules".encode())
+                        self.get_email(sock)
+                        all_sock.remove(sock)
+                        sock.close()
+                    elif request == "Get filenames":
+                        sock.send("Joules".encode())
+                        self.get_filenames(sock)
                         all_sock.remove(sock)
                         sock.close()
                     else:
@@ -213,7 +223,41 @@ class Server():
 
                 file.write(decrypted_image)
 
+        conn.commit()
+        conn.close()
+
         
+    def get_email(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0]
+        client.send(email.encode())
+        conn.commit()
+        conn.close()
+
+
+    def get_filenames(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+
+        folder_names = []
+        file_names = []
+        path = f"{self.path}\{email}"
+        for item in os.listdir(path):
+            full_path = os.path.join(path, item)
+            if os.path.isdir(full_path):
+                folder_names.append(item)
+            else:
+                file_names.append(item)
+    
+        client.send(f"folder: {folder_names}, files: {file_names}".encode())
+
+
     @staticmethod
     def is_image(file_name):
         return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png") or file_name.endswith("gif")

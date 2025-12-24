@@ -10,22 +10,46 @@ class UserPage(wx.Panel):
         self.parent = parent
         self.username = username
 
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.label = wx.StaticText(self, label=f"Welcome {username}!")
-        font = wx.Font(30, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
-        self.label.SetFont(font)
-        self.sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
-
+        left_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        icon_path = r"Pages\Assets\Logo.png"
+        img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
+        img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
+        bitmap = wx.Bitmap(img)
+        self.logo = wx.StaticBitmap(self, wx.ID_ANY, bitmap)
+        left_sidebar_sizer.Add(self.logo, 0, wx.ALL, 10)
+        
         self.add = wx.Button(self, label="+ Add", size=(100, 60))
         self.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialoge(event), self.add)
-        self.sizer.Add(self.add, 0, wx.ALIGN_LEFT | wx.TOP, 20)
+        left_sidebar_sizer.Add(self.add, 0, wx.LEFT, 5)
+        self.sizer.Add(left_sidebar_sizer, 0, wx.LEFT, 10)
+        
+        self.main_panel = wx.Panel(self)
+        self.main_panel.SetBackgroundColour(wx.Colour(225, 225, 226))
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.sizer.AddStretchSpacer(1)
+        self.label = wx.StaticText(self.main_panel, label=f"Welcome {username}!")
+        font = wx.Font(30, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
+        self.label.SetFont(font)
+        main_sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
 
-        self.disconnect = wx.Button(self, label="Disconnect", size=(150, 80))
-        self.Bind(wx.EVT_BUTTON, lambda event: parent.show_frame(cur=self), self.disconnect)
-        self.sizer.Add(self.disconnect, 0, wx.ALIGN_RIGHT | wx.BOTTOM)
+        files = self.get_user_filenames()
+        print(files)
+
+        self.main_panel.SetSizer(main_sizer)
+        self.sizer.Add(self.main_panel, 1, wx.EXPAND | wx.ALL, 10)
+
+        right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+        icon_path = r"Pages\Assets\User_logo.jpg"
+        img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
+        img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
+        logo_bitmap = wx.Bitmap(img)
+        self.logo_button = wx.BitmapButton(self, wx.ID_ANY, logo_bitmap)
+        self.logo_button.Bind(wx.EVT_BUTTON, self.on_logo_click)
+        right_sidebar_sizer.Add(self.logo_button, 0, wx.RIGHT | wx.TOP, 10)
+        self.sizer.Add(right_sidebar_sizer, 0, wx.LEFT, 10)
 
         self.SetSizer(self.sizer)
         self.Layout()
@@ -87,6 +111,58 @@ class UserPage(wx.Panel):
                     encrypted_image += Utilities.encrypt(chunk, public_key)
 
                 client.sendall(encrypted_image)
+
+
+    def on_logo_click(self, event):
+        if self.username == "admin":
+            email = "admin@gmail.com"
+        else:
+            client = socket.socket()
+            client.connect((Utilities.get_pc_ip(), 8200))
+            client.send("Get email".encode())
+            client.recv(1024)
+            client.send(self.username.encode())
+            email = client.recv(1024).decode()
+
+        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
+
+        panel = wx.Panel(popup)
+        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        email = wx.StaticText(panel, label=email)
+
+        signout = wx.Button(panel, label="Sign out")
+        signout.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup))
+
+        sizer.Add(email, 0, wx.ALL, 10)
+        sizer.Add(signout, 0, wx.EXPAND | wx.ALL, 5)
+
+        panel.SetSizer(sizer)
+        sizer.Fit(panel)
+        popup.SetSize(panel.GetSize())
+
+        btn = event.GetEventObject()
+        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
+
+        popup.Position(btn_pos, (0, 0))
+        popup.Popup()
+
+
+    def sign_out(self, popup_win):
+        popup_win.Hide()
+        self.parent.show_frame(cur=self)
+
+
+    def get_user_filenames(self):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Get filenames".encode())
+        client.recv(1024)
+        client.send(self.username.encode())
+        filenames = client.recv(1024).decode() 
+        return filenames
 
 
     @staticmethod

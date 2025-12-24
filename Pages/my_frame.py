@@ -20,6 +20,7 @@ class MyFrame(wx.Frame):
         for F in (FirstPage, LoginPage, RegisterPage):
             cur = F(self, size)
             self.sizer.Add(cur, proportion=1, flag=wx.EXPAND | wx.ALL)
+            cur.SetBackgroundColour(wx.Colour(245, 245, 246))
             cur.Hide()
             self.pages[F] = cur
 
@@ -42,6 +43,7 @@ class MyFrame(wx.Frame):
     def show_user_frame(self, cur, username):
         frame = UserPage(self, self.size, username)
         self.sizer.Add(frame, proportion=1, flag=wx.EXPAND | wx.ALL)
+        frame.SetBackgroundColour(wx.Colour(245, 245, 246))
         self.pages[frame] = frame
         cur.Hide()
         frame.Show(True)
