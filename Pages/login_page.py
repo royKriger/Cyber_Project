@@ -45,7 +45,7 @@ class LoginPage(wx.Panel):
         self.log = wx.Button(self, label="Log In", size=(120, 40))
         self.home = wx.Button(self, label="Home Page", size=(120, 40))
         self.Bind(wx.EVT_BUTTON, lambda event: Utilities.go_home(self, self.parent, self.inputs), self.home)
-        self.Bind(wx.EVT_BUTTON, lambda event: self.on_log_in(event), self.log)
+        self.Bind(wx.EVT_BUTTON, self.on_log_in, self.log)
         buttons_sizer.Add(self.log, 0, wx.ALL, 20)
         buttons_sizer.Add(self.home, 0, wx.ALL, 20)
 
@@ -55,7 +55,7 @@ class LoginPage(wx.Panel):
         self.Layout()
 
 
-    def on_log_in(self, event):
+    def on_log_in(self, e):
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
 
@@ -106,6 +106,9 @@ class LoginPage(wx.Panel):
         password = self.password.GetLineText(lineNo=0)
         return flag
     
-
+    
     def check_helper(self, event):
+        index = self.inputs.index(self.password)
         self.password = Utilities.on_check(self, self.password, self.show_password)
+        self.inputs[index] = self.password
+        

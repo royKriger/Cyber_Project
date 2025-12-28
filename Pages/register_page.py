@@ -124,4 +124,7 @@ class RegisterPage(wx.Panel):
 
 
     def check_helper(self, event):
+        index = self.inputs.index(self.password)
         self.password = Utilities.on_check(self, self.password, self.show_password)
+        self.inputs[index] = self.password
+        

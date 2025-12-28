@@ -12,7 +12,7 @@ class FirstPage(wx.Panel):
         self.admin = wx.Button(self, label="User Page", size=(100, 60))
         self.Bind(wx.EVT_BUTTON, lambda event: parent.show_user_frame(self, "Admin"), self.admin)
         self.sizer.Add(self.admin, 0, wx.ALIGN_LEFT, 5)
-        #self.admin.Hide()
+        self.admin.Hide()
 
         self.label = wx.StaticText(self, label="Welcome!")
         font = wx.Font(30, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)

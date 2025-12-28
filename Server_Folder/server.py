@@ -254,8 +254,11 @@ class Server():
                 folder_names.append(item)
             else:
                 file_names.append(item)
-    
-        client.send(f"folder: {folder_names}, files: {file_names}".encode())
+
+        files = folder_names + ['|'] + file_names
+        files = ','.join(files)
+
+        client.send(files.encode())
 
 
     @staticmethod

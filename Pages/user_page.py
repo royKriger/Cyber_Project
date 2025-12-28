@@ -36,7 +36,20 @@ class UserPage(wx.Panel):
         main_sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
 
         files = self.get_user_filenames()
-        print(files)
+        files = files.split(',')
+        self.files = []
+
+        file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        for i in range(len(files)):
+            if i % 4 ==0:
+                main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+                file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            button = wx.Button(self.main_panel, wx.ID_ANY, label=files[i])
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda: self.on_click_file, button)
+            file_sizer.Add(button, 0, wx.ALL, 5)
+
+        if len(files) % 4 != 0:
+            main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
 
         self.main_panel.SetSizer(main_sizer)
         self.sizer.Add(self.main_panel, 1, wx.EXPAND | wx.ALL, 10)
@@ -163,6 +176,34 @@ class UserPage(wx.Panel):
         client.send(self.username.encode())
         filenames = client.recv(1024).decode() 
         return filenames
+
+
+    def on_click_file(self, event):
+        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
+
+        panel = wx.Panel(popup)
+        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
+        
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        download = wx.Button(panel, label="Download")
+
+        signout = wx.Button(panel, label="Delete")
+        signout.Bind(wx.EVT_BUTTON, lambda: self.sign_out(popup))
+
+        sizer.Add(download, 0, wx.ALL, 10)
+        sizer.Add(signout, 0, wx.EXPAND | wx.ALL, 5)
+        
+        panel.SetSizer(sizer)
+        sizer.Fit(panel)
+        popup.SetSize(panel.GetSize())
+
+        btn = event.GetEventObject()
+        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
+
+        popup.Position(btn_pos, (0, 0))
+        popup.Popup()
+
 
 
     @staticmethod
