@@ -28,30 +28,20 @@ class UserPage(wx.Panel):
         
         self.main_panel = wx.Panel(self)
         self.main_panel.SetBackgroundColour(wx.Colour(225, 225, 226))
-        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.label = wx.StaticText(self.main_panel, label=f"Welcome {username}!")
+        self.label = wx.StaticText(self.main_panel, label=f"Welcome {self.username}!")
         font = wx.Font(30, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
         self.label.SetFont(font)
-        main_sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+        self.main_sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
 
         files = self.get_user_filenames()
-        files = files.split(',')
-        self.files = []
+        self.files = files.split(',')
+        self.files.remove('|')
 
-        file_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        for i in range(len(files)):
-            if i % 4 ==0:
-                main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
-                file_sizer = wx.BoxSizer(wx.HORIZONTAL)
-            button = wx.Button(self.main_panel, wx.ID_ANY, label=files[i])
-            self.main_panel.Bind(wx.EVT_BUTTON, lambda: self.on_click_file, button)
-            file_sizer.Add(button, 0, wx.ALL, 5)
+        self.print_files()
 
-        if len(files) % 4 != 0:
-            main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
-
-        self.main_panel.SetSizer(main_sizer)
+        self.main_panel.SetSizer(self.main_sizer)
         self.sizer.Add(self.main_panel, 1, wx.EXPAND | wx.ALL, 10)
 
         right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -67,6 +57,33 @@ class UserPage(wx.Panel):
         self.SetSizer(self.sizer)
         self.Layout()
 
+
+    def print_files(self):
+        while self.main_sizer.GetItemCount() > 1:
+            item = self.main_sizer.GetItem(1)
+
+            if item.IsSizer():
+                sizer = item.GetSizer()
+                self.main_sizer.Detach(sizer)
+                sizer.Clear(delete_windows=True)
+            else:
+                window = item.GetWindow()
+                self.main_sizer.Detach(window)
+                window.Destroy()
+
+
+        file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        for i in range(len(self.files)):
+            if i % 4 == 0:
+                self.main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+                file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{self.files[i]}")
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_file(event), button)
+            file_sizer.Add(button, 0, wx.ALL, 5)
+
+        self.main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+
+        self.Layout()
 
     def open_dir_dialoge(self, event):
         client = socket.socket()
@@ -110,7 +127,7 @@ class UserPage(wx.Panel):
 
                 client.sendall(encrypted_file)
 
-        elif self.is_image(file_name):
+        elif self.is_bytes(file_name):
             with open(file_path, "rb") as file:
                 image_bytes = file.read()
 
@@ -124,7 +141,9 @@ class UserPage(wx.Panel):
                     encrypted_image += Utilities.encrypt(chunk, public_key)
 
                 client.sendall(encrypted_image)
-
+            
+        self.files.append(file_name)
+        self.print_files()
 
     def on_logo_click(self, event):
         if self.username == "admin":
@@ -181,34 +200,97 @@ class UserPage(wx.Panel):
     def on_click_file(self, event):
         popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
 
+        btn = event.GetEventObject()
+        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
+
         panel = wx.Panel(popup)
         panel.SetBackgroundColour(wx.Colour(250, 250, 251))
         
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         download = wx.Button(panel, label="Download")
+        panel.Bind(wx.EVT_BUTTON, lambda event: self.download_file(event, btn), download)
 
-        signout = wx.Button(panel, label="Delete")
-        signout.Bind(wx.EVT_BUTTON, lambda: self.sign_out(popup))
+        remove = wx.Button(panel, label="Delete")
+        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_file(event, popup, btn), remove)
 
         sizer.Add(download, 0, wx.ALL, 10)
-        sizer.Add(signout, 0, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(remove, 0, wx.EXPAND | wx.ALL, 5)
         
         panel.SetSizer(sizer)
         sizer.Fit(panel)
         popup.SetSize(panel.GetSize())
 
-        btn = event.GetEventObject()
-        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
-
         popup.Position(btn_pos, (0, 0))
         popup.Popup()
 
 
+    def download_file(self, event, btn):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Get file".encode())
+        client.recv(1024)
+        client.send(self.username.encode())
+        client.recv(1024)
+
+        label = btn.Label
+        client.send(label.encode())
+        length = int(client.recv(1024).decode())
+        client.send("Joules".encode())
+
+        if self.is_txt(label):
+            file_content = ''
+            for i in range(length // 1024 + 1):
+                file_content += client.recv(1024).decode()
+
+            with open(fr'C:\Users\roykr\Desktop\{label}', 'w') as file:
+                file.write(file_content)
+
+        if self.is_bytes(label):
+            file_content = b''
+            for i in range(length // 1024 + 1):
+                file_content += client.recv(1024)
+
+            with open(fr'C:\Users\roykr\Desktop\{label}', 'wb') as file:
+                file.write(file_content)
+        
+
+    def remove_file(self, event, popup, btn):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Remove file".encode())
+        client.recv(1024)
+        client.send(self.username.encode())
+        client.recv(1024)
+
+        label = btn.Label
+        client.send(label.encode())
+
+        btn_sizer = btn.GetContainingSizer()
+        index = Utilities.get_item_index(btn_sizer, btn)
+        btn_sizer.Hide(index)
+        btn_sizer.Remove(index)
+
+        popup.Hide()
+
+        self.files.remove(label)
+        self.print_files()
+
 
     @staticmethod
-    def is_image(file_name):
-        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png") or file_name.endswith("gif")
+    def get_item_index(sizer, window):
+        for i in range(sizer.GetItemCount()):
+            item = sizer.GetItem(i)
+            if item and item.GetWindow() is window:
+                return i
+        return -1
+
+
+    @staticmethod
+    def is_bytes(file_name):
+        return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
+                or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
+                or file_name.endswith("jfif"))
     
 
     @staticmethod

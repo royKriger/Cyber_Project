@@ -36,7 +36,7 @@ class Server():
                     request = sock.recv(1024).decode()
                     if request == "Sign up" or request == "Log in":
                         sock.send("Joules".encode())
-                        self.accept_client(sock, self.private_key, self.public_key)
+                        self.accept_client(sock)
                         all_sock.remove(sock)
                     elif request == "Log out":
                         all_sock.remove(sock)
@@ -51,20 +51,30 @@ class Server():
                         self.get_filenames(sock)
                         all_sock.remove(sock)
                         sock.close()
+                    elif request == "Get file":
+                        sock.send("Joules".encode())
+                        self.get_file(sock)
+                        all_sock.remove(sock)
+                        sock.close()
+                    elif request == "Remove file":
+                        sock.send("Joules".encode())
+                        self.remove_file(sock)
+                        all_sock.remove(sock)
+                        sock.close()
                     else:
                         self.handle_client(sock, self.private_key, self.public_key)
                         all_sock.remove(sock)
                         sock.close()
 
 
-    def accept_client(self, client, private_key, public_key):
+    def accept_client(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
         action = client.recv(1024).decode()
 
         client.send(f"Connected To The Server! ".encode())
-        public_key_pem = public_key.public_bytes(
+        public_key_pem = self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
@@ -72,7 +82,7 @@ class Server():
         client.sendall(public_key_pem)
         encrypted_data = client.recv(4096)
 
-        decrypted_bytes = private_key.decrypt(
+        decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -119,7 +129,7 @@ class Server():
 
         encrypted_data = client.recv(4096)
         
-        decrypted_bytes = private_key.decrypt(
+        decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -203,7 +213,7 @@ class Server():
                 decrypted_file = decrypted_file.decode()
                 file.write(decrypted_file)
 
-        if self.is_image(file_name):
+        elif self.is_bytes(file_name):
             encrypted_image = b''
             with open(fr"{self.path}\{file_name}", 'wb') as file:
                 for i in range(length):
@@ -260,10 +270,60 @@ class Server():
 
         client.send(files.encode())
 
+    
+    def get_file(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+        client.send("Joules^2".encode())
+
+        file_name = client.recv(1024).decode()
+        path = fr"{self.path}\{email}\{file_name}"
+
+        if self.is_txt(file_name):
+            with open(path, 'r') as file:
+                file_content = file.read()
+
+                length = len(file_content)
+                client.send(str(length).encode())
+                client.recv(1024)
+
+                client.send(file_content.encode())
+
+        elif self.is_bytes(file_name):
+            with open(path, 'rb') as file:
+                file_content = file.read()
+
+                length = len(file_content)
+                client.send(str(length).encode())
+                client.recv(1024)
+                
+                client.send(file_content)
+
+        conn.commit()
+        conn.close()
+
+
+    def remove_file(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+        client.send("Joules^2".encode())
+
+        file_name = client.recv(1024).decode()
+        path = fr"{self.path}\{email}\{file_name}"
+        os.remove(path)
+
 
     @staticmethod
-    def is_image(file_name):
-        return file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png") or file_name.endswith("gif")
+    def is_bytes(file_name):
+        return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
+                or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
+                or file_name.endswith("jfif"))
     
 
     @staticmethod

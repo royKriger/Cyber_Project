@@ -105,6 +105,7 @@ class Utilities():
 
         return new_ctrl
 
+
     @staticmethod
     def get_item_index(sizer, window):
         for i in range(sizer.GetItemCount()):
