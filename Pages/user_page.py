@@ -243,7 +243,7 @@ class UserPage(wx.Panel):
             for i in range(length // 1024 + 1):
                 file_content += client.recv(1024).decode()
 
-            with open(fr'C:\Users\roykr\Desktop\{label}', 'w') as file:
+            with open(fr'C:\Users\Roy\Desktop\{label}', 'w') as file:
                 file.write(file_content)
 
         if self.is_bytes(label):
@@ -251,7 +251,7 @@ class UserPage(wx.Panel):
             for i in range(length // 1024 + 1):
                 file_content += client.recv(1024)
 
-            with open(fr'C:\Users\roykr\Desktop\{label}', 'wb') as file:
+            with open(fr'C:\Users\Roy\Desktop\{label}', 'wb') as file:
                 file.write(file_content)
         
 
@@ -266,24 +266,8 @@ class UserPage(wx.Panel):
         label = btn.Label
         client.send(label.encode())
 
-        btn_sizer = btn.GetContainingSizer()
-        index = Utilities.get_item_index(btn_sizer, btn)
-        btn_sizer.Hide(index)
-        btn_sizer.Remove(index)
-
-        popup.Hide()
-
         self.files.remove(label)
         self.print_files()
-
-
-    @staticmethod
-    def get_item_index(sizer, window):
-        for i in range(sizer.GetItemCount()):
-            item = sizer.GetItem(i)
-            if item and item.GetWindow() is window:
-                return i
-        return -1
 
 
     @staticmethod
