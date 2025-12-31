@@ -294,7 +294,6 @@ class Server():
         full_path = os.path.join(self.path, folder_name)
         os.mkdir(full_path)
         files = client.recv(1024).decode().split(',')
-
         for file_name in files:
             client.send("Joules".encode())
             length = int(client.recv(1024).decode())
@@ -343,21 +342,31 @@ class Server():
         file_names = []
         folder = client.recv(1024).decode()
         path = fr"{self.path}\{email}"
-        if folder != '\00b':
+        if folder != '.........':
             path += fr"\{folder}"
         for item in os.listdir(path):
             full_path = os.path.join(path, item)
             if os.path.isdir(full_path):
-                folder_names.append(f"{item}.folder")
+                folder_names.append(item)
             else:
                 file_names.append(item)
 
-        files = folder_names + ['|'] + file_names
-        files = ','.join(files)
+        files = ','.join(file_names)
+        folders = ','.join(folder_names)
 
-        client.send(files.encode())
+        if folders == '':
+            client.send("none".encode())
+        else:
+            client.send(folders.encode())
 
+        client.recv(1024)
+
+        if files == '':
+            client.send("none".encode())
+        else:
+            client.send(files.encode())
     
+
     def get_file(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()

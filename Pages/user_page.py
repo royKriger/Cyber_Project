@@ -10,7 +10,10 @@ class UserPage(wx.Panel):
         super(UserPage, self).__init__(parent, size=size)
         self.parent = parent
         self.username = username
+        self.current_folder = self.username
 
+        self.folders, self.files = self.get_user_filenames()
+        
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.timer = wx.Timer(self)
 
@@ -37,16 +40,23 @@ class UserPage(wx.Panel):
         self.label.SetFont(font)
         self.main_sizer.Add(self.label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
 
-        self.path_label = wx.StaticText(self.main_panel, label=f"Path: {self.username}")
+        self.path_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.path_label = wx.StaticText(self.main_panel, label=f"Path:")
         font = wx.Font(20, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
         self.path_label.SetFont(font)
-        self.main_sizer.Add(self.path_label, 0, wx.ALIGN_CENTER | wx.ALL, 15)
-        
-        files = self.get_user_filenames()
-        self.files = files.split(',')
-        self.files.remove('|')
+        self.path_sizer.Add(self.path_label, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        self.print_files(self.files)
+        self.path_buttons = []
+
+        button = wx.Button(self.main_panel, label=self.username, size=(60, 40))
+        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.reset(), button)
+        self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        self.path_buttons.append(button)
+
+        self.main_sizer.Add(self.path_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+        
+        self.print_files()
 
         self.main_panel.SetSizer(self.main_sizer)
         self.sizer.Add(self.main_panel, 1, wx.EXPAND | wx.ALL, 10)
@@ -65,6 +75,24 @@ class UserPage(wx.Panel):
 
         self.SetSizer(self.sizer)
         self.Layout()
+
+
+    def reset(self):
+        while self.path_sizer.GetItemCount() > 2:
+            item = self.path_sizer.GetItem(2)
+
+            if item.IsSizer():
+                sizer = item.GetSizer()
+                self.path_sizer.Detach(sizer)
+                sizer.Clear(delete_windows=True)
+            else:
+                window = item.GetWindow()
+                self.path_sizer.Detach(window)
+                window.Destroy()
+            
+        self.current_folder = self.username
+        self.folders, self.files = self.get_user_filenames()
+        self.print_files()
 
 
     def file_or_folder(self, event):
@@ -95,7 +123,7 @@ class UserPage(wx.Panel):
         popup.Popup()
 
 
-    def print_files(self, files):
+    def print_files(self):
         while self.main_sizer.GetItemCount() > 2:
             item = self.main_sizer.GetItem(2)
 
@@ -108,22 +136,40 @@ class UserPage(wx.Panel):
                 self.main_sizer.Detach(window)
                 window.Destroy()
 
-        file_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        for i in range(len(files)):
-            if i % 4 == 0:
-                self.main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
-                file_sizer = wx.BoxSizer(wx.HORIZONTAL)
-            if files[i].endswith(".folder"):
-                files[i] = files[i].split('.folder')[0]
-                button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{files[i]}")
+        folders_sizer = wx.BoxSizer(wx.VERTICAL)
+        folders_sizer.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Folders:"), 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        folder_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        if self.folders != []:
+            for i in range(len(self.folders)):
+                if folder_sizer.ItemCount % 4 == 0 and folder_sizer.ItemCount != 0:
+                    folders_sizer.Add(folder_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                    folder_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+                button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{self.folders[i]}")
                 button.Bind(wx.EVT_LEFT_DCLICK, lambda event: self.on_dclick_folder(event))
                 self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_folder(event), button)
-            else:
-                button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{files[i]}")
-                self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_file(event), button)
-            file_sizer.Add(button, 0, wx.ALL, 5)
+                folder_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        self.main_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+        files_sizer = wx.BoxSizer(wx.VERTICAL)
+        files_sizer.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Files:"), 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        if self.files != []:
+            for i in range(len(self.files)):
+                if file_sizer.ItemCount % 4 == 0 and file_sizer.ItemCount != 0:
+                    files_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                    file_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+                button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{self.files[i]}")
+                self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_file(event), button)
+                file_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        folders_sizer.Add(folder_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        files_sizer.Add(file_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        self.main_sizer.Add(folders_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 10)
+        self.main_sizer.Add(files_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 10)
 
         self.Layout()
 
@@ -160,7 +206,7 @@ class UserPage(wx.Panel):
             self.send_bytes(file_path, client, public_key)
                 
         self.files.append(file_name)
-        self.print_files(self.files)
+        self.print_files()
 
 
     def open_dir_dialoge(self, event):
@@ -199,6 +245,7 @@ class UserPage(wx.Panel):
                     content = file.read()
                     length = len(content)
                     client.send(str(length).encode())
+                    client.recv(1024)
                     client.send(content.encode())
 
             if self.is_bytes(item):
@@ -210,7 +257,7 @@ class UserPage(wx.Panel):
                     client.send(content)
                 
         self.files.append(folder_name)
-        self.print_files(self.files)
+        self.print_files()
 
 
     def on_logo_click(self, event):
@@ -252,20 +299,38 @@ class UserPage(wx.Panel):
 
     def sign_out(self, popup_win):
         popup_win.Hide()
+        self.current_folder = self.username
         self.parent.show_frame(cur=self)
 
 
-    def get_user_filenames(self, folder='\00b'):
+    def get_user_filenames(self):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send("Get filenames".encode())
         client.recv(1024)
         client.send(self.username.encode())
         client.recv(1024)
-        client.send(folder.encode())
-        filenames = client.recv(1024).decode()
-        return filenames
+        if self.current_folder != self.username:
+            client.send(self.current_folder.encode())
+        else:
+            client.send(".........".encode())
 
+        folders = client.recv(1024).decode()
+        client.send("Joules".encode())
+        files = client.recv(1024).decode()
+
+        if files != "none":
+            files = files.split(',')
+        else:
+            files = []
+
+        if folders != "none":
+            folders = folders.split(',')
+        else:
+            folders = []
+
+        return folders, files
+    
 
     def on_click_file(self, event):
         popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
@@ -282,7 +347,7 @@ class UserPage(wx.Panel):
         panel.Bind(wx.EVT_BUTTON, lambda event: self.download_file(event, btn), download)
 
         remove = wx.Button(panel, label="Delete")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_file(event, popup, btn), remove)
+        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_file(event, btn), remove)
 
         sizer.Add(download, 0, wx.ALL, 10)
         sizer.Add(remove, 0, wx.EXPAND | wx.ALL, 5)
@@ -310,7 +375,7 @@ class UserPage(wx.Panel):
         panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder(event, btn), download)
 
         remove = wx.Button(panel, label="Delete")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_file(event, popup, btn), remove)
+        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_file(event, btn), remove)
 
         sizer.Add(download, 0, wx.ALL, 10)
         sizer.Add(remove, 0, wx.EXPAND | wx.ALL, 5)
@@ -326,11 +391,14 @@ class UserPage(wx.Panel):
     def on_dclick_folder(self, event):
         button = event.GetEventObject()
         folder = button.Label
-        files = self.get_user_filenames(folder)
-        self.path_label.SetLabel(fr"Path: {self.username}\{folder}")
-        files = files.split(',')
-        files.remove('|')
-        self.print_files(files)
+        self.current_folder = folder
+        self.folders, self.files = self.get_user_filenames()
+        
+        button = wx.Button(self.main_panel, label=folder, size=(60, 40))
+        self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        self.path_buttons.append(button)
+
+        self.print_files()
 
 
     def download_file(self, event, btn):
@@ -342,8 +410,8 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        if self.path_label.GetLabel() != self.username:
-            label = self.path_label.GetLabel().split('\\')[-1] + "\\" + label
+        if self.current_folder != self.username:
+            label = self.current_folder + "\\" + label
 
         client.send(label.encode())
         length = int(client.recv(1024).decode())
@@ -355,7 +423,7 @@ class UserPage(wx.Panel):
                 file_content += client.recv(1024).decode()
             
             file_name = label.split("\\")[-1]
-            with open(fr'C:\Users\Pc2\Desktop\{file_name}', 'w') as file:
+            with open(fr'C:\Users\roykr\Desktop\{file_name}', 'w') as file:
                 file.write(file_content)
 
         if self.is_bytes(label):
@@ -363,7 +431,7 @@ class UserPage(wx.Panel):
             for i in range(length // 1024 + 1):
                 file_content += client.recv(1024)
 
-            with open(fr'C:\Users\Pc2\Desktop\{label}', 'wb') as file:
+            with open(fr'C:\Users\roykr\Desktop\{label}', 'wb') as file:
                 file.write(file_content)
     
     
@@ -377,7 +445,7 @@ class UserPage(wx.Panel):
 
         label = btn.Label
         client.send(label.encode())
-        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
+        full_path =  fr'C:\Users\roykr\Desktop\{label}'
         os.mkdir(full_path)
         files = client.recv(1024).decode().split(',')
 
@@ -403,19 +471,21 @@ class UserPage(wx.Panel):
                     file.write(file_content)
 
 
-    def remove_file(self, event, popup, btn):
+    def remove_file(self, event, btn):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send("Remove file".encode())
         client.recv(1024)
         client.send(self.username.encode())
         client.recv(1024)
-
+        
         label = btn.Label
+        self.files.remove(label)
+        if self.current_folder != self.username:
+            label = self.current_folder + '\\' + label
         client.send(label.encode())
 
-        self.files.remove(label)
-        self.print_files(self.files)
+        self.print_files()
 
 
     def send_bytes(self, file_path, client, public_key):
