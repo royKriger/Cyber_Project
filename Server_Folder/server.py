@@ -1,5 +1,6 @@
 import os
 import socket
+import shutil
 import sqlite3
 import select
 import base64
@@ -56,15 +57,25 @@ class Server():
                         self.get_file(sock)
                         all_sock.remove(sock)
                         sock.close()
+                    elif request == "Get folder":
+                        sock.send("Joules".encode())
+                        self.get_folder(sock)
+                        all_sock.remove(sock)
+                        sock.close()
                     elif request == "Remove file":
                         sock.send("Joules".encode())
                         self.remove_file(sock)
                         all_sock.remove(sock)
                         sock.close()
-                    else:
-                        self.handle_client(sock, self.private_key, self.public_key)
+                    elif request == "Upload file":
+                        self.handle_file(sock)
                         all_sock.remove(sock)
                         sock.close()
+                    elif request == "Upload folder":
+                        self.handle_folder(sock)
+                        all_sock.remove(sock)
+                        sock.close()
+
 
 
     def accept_client(self, client):
@@ -148,11 +159,11 @@ class Server():
         conn.close()
 
 
-    def handle_client(self, client, private_key, public_key):
+    def handle_file(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
-        public_key_pem = public_key.public_bytes(
+        public_key_pem = self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
@@ -160,7 +171,7 @@ class Server():
         client.sendall(public_key_pem)
         encrypted_data = client.recv(4096)
 
-        decrypted_bytes = private_key.decrypt(
+        decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -180,7 +191,7 @@ class Server():
             client.close()
             return
 
-        decrypted_bytes = private_key.decrypt(
+        decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -202,7 +213,7 @@ class Server():
                 decrypted_file = b''
                 for i in range(0, len(encrypted_file), 256):
                     chunk = encrypted_file[i:i + 256]
-                    decrypted_file += private_key.decrypt(
+                    decrypted_file += self.private_key.decrypt(
                         chunk,
                         padding.OAEP(
                             mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -222,7 +233,7 @@ class Server():
                 decrypted_image = b''
                 for i in range(0, len(encrypted_image), 256):
                     chunk = encrypted_image[i:i + 256]
-                    decrypted_image += private_key.decrypt(
+                    decrypted_image += self.private_key.decrypt(
                         chunk,
                         padding.OAEP(
                             mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -233,6 +244,78 @@ class Server():
 
                 file.write(decrypted_image)
 
+        conn.commit()
+        conn.close()
+
+
+    def handle_folder(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+
+        public_key_pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+        client.sendall(public_key_pem)
+        encrypted_data = client.recv(4096)
+
+        decrypted_bytes = self.private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        client.send("Joules^2".encode())
+
+        username = decrypted_bytes.decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+
+        try:
+            encrypted_data = client.recv(4096)
+        except:
+            client.close()
+            return
+
+        decrypted_bytes = self.private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        folder_name = fr"{email}\{decrypted_bytes.decode()}"
+        client.send("Joules".encode())
+
+        full_path = os.path.join(self.path, folder_name)
+        os.mkdir(full_path)
+        files = client.recv(1024).decode().split(',')
+
+        for file_name in files:
+            client.send("Joules".encode())
+            length = int(client.recv(1024).decode())
+            client.send("Joules1".encode())
+            
+            if self.is_txt(file_name):
+                file_content = ''
+                for i in range(length // 1024 + 1):
+                    file_content += client.recv(1024).decode()
+
+                with open(fr"{full_path}\{file_name}", 'w') as file:
+                    file.write(file_content)
+                
+            if self.is_bytes(file_name):
+                file_content = b''
+                for i in range(length // 1024 + 1):
+                    file_content += client.recv(1024)
+
+                with open(fr"{full_path}\{file_name}", 'wb') as file:
+                    file.write(file_content)
+            
         conn.commit()
         conn.close()
 
@@ -255,13 +338,17 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
+        client.send("Joules".encode())
         folder_names = []
         file_names = []
+        folder = client.recv(1024).decode()
         path = fr"{self.path}\{email}"
+        if folder != '\00b':
+            path += fr"\{folder}"
         for item in os.listdir(path):
             full_path = os.path.join(path, item)
             if os.path.isdir(full_path):
-                folder_names.append(item)
+                folder_names.append(f"{item}.folder")
             else:
                 file_names.append(item)
 
@@ -289,7 +376,7 @@ class Server():
                 length = len(file_content)
                 client.send(str(length).encode())
                 client.recv(1024)
-
+                
                 client.send(file_content.encode())
 
         elif self.is_bytes(file_name):
@@ -305,6 +392,43 @@ class Server():
         conn.commit()
         conn.close()
 
+    
+    def get_folder(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+        client.send("Joules^2".encode())
+
+        file_name = client.recv(1024).decode()
+        path = fr"{self.path}\{email}\{file_name}"
+        items = os.listdir(path)
+        files = ','.join(items)
+        client.send(files.encode())
+
+        for item in items:
+            full_path = os.path.join(path, item)
+            client.recv(1024)
+            if self.is_txt(item):
+                with open(full_path, 'r') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(str(length).encode())
+                    client.recv(1024)
+                    client.send(content.encode())
+
+            if self.is_bytes(item):
+                with open(full_path, 'rb') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(str(length).encode())
+                    client.recv(1024)
+                    client.send(content)
+
+        conn.commit()
+        conn.close()
+
 
     def remove_file(self, client):
         conn = sqlite3.connect(self.database)
@@ -316,7 +440,10 @@ class Server():
 
         file_name = client.recv(1024).decode()
         path = fr"{self.path}\{email}\{file_name}"
-        os.remove(path)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
 
 
     @staticmethod
