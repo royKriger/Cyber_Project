@@ -256,7 +256,7 @@ class UserPage(wx.Panel):
                     client.recv(1024)
                     client.send(content)
                 
-        self.files.append(folder_name)
+        self.folders.append(folder_name)
         self.print_files()
 
 
@@ -411,9 +411,9 @@ class UserPage(wx.Panel):
 
         label = btn.Label
         if self.current_folder != self.username:
-            label = self.current_folder + "\\" + label
+            path = self.current_folder + "\\" + label
 
-        client.send(label.encode())
+        client.send(path.encode())
         length = int(client.recv(1024).decode())
         client.send("Joules".encode())
 
@@ -480,6 +480,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
         
         label = btn.Label
+        
         self.files.remove(label)
         if self.current_folder != self.username:
             label = self.current_folder + '\\' + label
