@@ -77,7 +77,6 @@ class Server():
                         sock.close()
 
 
-
     def accept_client(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
@@ -185,11 +184,7 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        try:
-            encrypted_data = client.recv(4096)
-        except:
-            client.close()
-            return
+        encrypted_data = client.recv(4096)
 
         decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
@@ -274,11 +269,7 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        try:
-            encrypted_data = client.recv(4096)
-        except:
-            client.close()
-            return
+        encrypted_data = client.recv(4096)
 
         decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
@@ -293,28 +284,81 @@ class Server():
 
         full_path = os.path.join(self.path, folder_name)
         os.mkdir(full_path)
-        files = client.recv(1024).decode().split(',')
-        for file_name in files:
+
+        folders = client.recv(1024).decode()
+        client.send("Joules".encode())
+        files = client.recv(1024).decode()
+
+        if files != "none":
+            files = files.split(',')
+        else:
+            files = []
+
+        if folders != "none":
+            folders = folders.split(',')
+        else:
+            folders = []
+
+        for item in files:
             client.send("Joules".encode())
             length = int(client.recv(1024).decode())
             client.send("Joules1".encode())
             
-            if self.is_txt(file_name):
+            if self.is_txt(item):
                 file_content = ''
                 for i in range(length // 1024 + 1):
                     file_content += client.recv(1024).decode()
 
-                with open(fr"{full_path}\{file_name}", 'w') as file:
+                with open(fr"{full_path}\{item}", 'w') as file:
                     file.write(file_content)
                 
-            if self.is_bytes(file_name):
+            if self.is_bytes(item):
                 file_content = b''
                 for i in range(length // 1024 + 1):
                     file_content += client.recv(1024)
 
-                with open(fr"{full_path}\{file_name}", 'wb') as file:
+                with open(fr"{full_path}\{item}", 'wb') as file:
                     file.write(file_content)
-            
+        
+        for item in folders:
+            current_path = os.path.join(full_path, item)
+            os.mkdir(current_path)
+
+            folders = client.recv(1024).decode()
+            client.send("Joules".encode())
+            files = client.recv(1024).decode()
+
+            if files != "none":
+                files = files.split(',')
+            else:
+                files = []
+
+            if folders != "none":
+                folders = folders.split(',')
+            else:
+                folders = []
+
+            for item in files:
+                client.send("Joules".encode())
+                length = int(client.recv(1024).decode())
+                client.send("Joules1".encode())
+                
+                if self.is_txt(item):
+                    file_content = ''
+                    for i in range(length // 1024 + 1):
+                        file_content += client.recv(1024).decode()
+
+                    with open(fr"{current_path}\{item}", 'w') as file:
+                        file.write(file_content)
+                    
+                if self.is_bytes(item):
+                    file_content = b''
+                    for i in range(length // 1024 + 1):
+                        file_content += client.recv(1024)
+
+                    with open(fr"{current_path}\{item}", 'wb') as file:
+                        file.write(file_content)
+
         conn.commit()
         conn.close()
 
