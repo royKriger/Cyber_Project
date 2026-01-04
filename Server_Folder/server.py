@@ -285,20 +285,7 @@ class Server():
         full_path = os.path.join(self.path, folder_name)
         os.mkdir(full_path)
 
-        folders = client.recv(1024).decode()
-        client.send("Joules".encode())
-        files = client.recv(1024).decode()
-
-        if files != "none":
-            files = files.split(',')
-        else:
-            files = []
-
-        if folders != "none":
-            folders = folders.split(',')
-        else:
-            folders = []
-
+        folders, files = self.get_all_files(client)
         for item in files:
             client.send("Joules".encode())
             length = int(client.recv(1024).decode())
@@ -361,6 +348,24 @@ class Server():
 
         conn.commit()
         conn.close()
+
+
+    def get_all_files(self, client):
+        folders = client.recv(1024).decode()
+        client.send("Joules".encode())
+        files = client.recv(1024).decode()
+
+        if files != "none":
+            files = files.split(',')
+        else:
+            files = []
+
+        if folders != "none":
+            folders = folders.split(',')
+        else:
+            folders = []
+
+        return folders, files
 
         
     def get_email(self, client):

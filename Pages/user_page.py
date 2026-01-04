@@ -427,7 +427,7 @@ class UserPage(wx.Panel):
         client.send(self.username.encode())
         client.recv(1024)
         
-        label = btn.Labe
+        label = btn.Label
         if name == "folder":
             self.folders.remove(label)
         else:
@@ -440,8 +440,7 @@ class UserPage(wx.Panel):
         self.print_files()
 
 
-    def send_all_files(self, client, folder_path):
-        folders, files = self.get_folders_and_files(client, folder_path)
+    def send_all_files(self, client, folder_path, files):
         for item in files:
             client.recv(1024)
             full_path = os.path.join(folder_path, item)
@@ -463,17 +462,18 @@ class UserPage(wx.Panel):
             
     
     def send_all_files_in_folder(self, client, folder_path):
-        folders, files = self.get_folders_and_files(client, folder_path)
+        folders, files = self.get_and_send_folders_and_files(client, folder_path)
         if not folders:
-            self.send_all_files(client, folder_path)
+            self.send_all_files(client, folder_path, files)
             return
+        
         for folder in folders:
             path = os.path.join(folder_path, folder)
-            self.send_all_files(client, path)
+            self.send_all_files(client, path, files)
             self.send_all_files_in_folder(client, path)
 
     
-    def get_folders_and_files(self, client, folder_path):
+    def get_and_send_folders_and_files(self, client, folder_path):
         items = os.listdir(folder_path)
         folder_names = []
         file_names = []
