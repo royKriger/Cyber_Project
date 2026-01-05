@@ -49,17 +49,12 @@ class Server():
                         sock.close()
                     elif request == "Get filenames":
                         sock.send("Joules".encode())
-                        self.get_filenames(sock)
+                        self.send_filenames(sock)
                         all_sock.remove(sock)
                         sock.close()
-                    elif request == "Get file":
+                    elif request == "Get folder" or request == "Get file":
                         sock.send("Joules".encode())
-                        self.get_file(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Get folder":
-                        sock.send("Joules".encode())
-                        self.get_folder(sock)
+                        self.get_file_or_folder(sock, request)
                         all_sock.remove(sock)
                         sock.close()
                     elif request == "Remove file":
@@ -284,8 +279,45 @@ class Server():
 
         full_path = os.path.join(self.path, folder_name)
         os.mkdir(full_path)
+        
+        self.recieve_all_files_and_folders(client, full_path)
 
-        folders, files = self.get_all_files(client)
+        conn.commit()
+        conn.close()
+
+    
+    def recieve_all_files_and_folders(self, client, full_path):
+        folders, files = self.get_all_filenames(client)
+        if not folders:
+            self.get_all_files(client, files, full_path)
+            return
+
+        for folder in folders:
+            path = os.path.join(full_path, folder)
+            os.mkdir(path)
+            self.get_all_files(client, files, full_path)
+            self.recieve_all_files_and_folders(client, path)
+
+
+    def get_all_filenames(self, client):
+        folders = client.recv(1024).decode()
+        client.send("Joules".encode())
+        files = client.recv(1024).decode()
+
+        if files != "none":
+            files = files.split(',')
+        else:
+            files = []
+
+        if folders != "none":
+            folders = folders.split(',')
+        else:
+            folders = []
+
+        return folders, files
+
+
+    def get_all_files(self, client, files, full_path):
         for item in files:
             client.send("Joules".encode())
             length = int(client.recv(1024).decode())
@@ -306,66 +338,6 @@ class Server():
 
                 with open(fr"{full_path}\{item}", 'wb') as file:
                     file.write(file_content)
-        
-        for item in folders:
-            current_path = os.path.join(full_path, item)
-            os.mkdir(current_path)
-
-            folders = client.recv(1024).decode()
-            client.send("Joules".encode())
-            files = client.recv(1024).decode()
-
-            if files != "none":
-                files = files.split(',')
-            else:
-                files = []
-
-            if folders != "none":
-                folders = folders.split(',')
-            else:
-                folders = []
-
-            for item in files:
-                client.send("Joules".encode())
-                length = int(client.recv(1024).decode())
-                client.send("Joules1".encode())
-                
-                if self.is_txt(item):
-                    file_content = ''
-                    for i in range(length // 1024 + 1):
-                        file_content += client.recv(1024).decode()
-
-                    with open(fr"{current_path}\{item}", 'w') as file:
-                        file.write(file_content)
-                    
-                if self.is_bytes(item):
-                    file_content = b''
-                    for i in range(length // 1024 + 1):
-                        file_content += client.recv(1024)
-
-                    with open(fr"{current_path}\{item}", 'wb') as file:
-                        file.write(file_content)
-
-        conn.commit()
-        conn.close()
-
-
-    def get_all_files(self, client):
-        folders = client.recv(1024).decode()
-        client.send("Joules".encode())
-        files = client.recv(1024).decode()
-
-        if files != "none":
-            files = files.split(',')
-        else:
-            files = []
-
-        if folders != "none":
-            folders = folders.split(',')
-        else:
-            folders = []
-
-        return folders, files
 
         
     def get_email(self, client):
@@ -379,7 +351,7 @@ class Server():
         conn.close()
 
 
-    def get_filenames(self, client):
+    def jsend_filenames(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
         username = client.recv(1024).decode()
@@ -416,7 +388,7 @@ class Server():
             client.send(files.encode())
     
 
-    def get_file(self, client):
+    def get_file_or_folder(self, client, request):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
         username = client.recv(1024).decode()
@@ -425,49 +397,23 @@ class Server():
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
-        path = fr"{self.path}\{email}\{file_name}"
+        path = fr"{self.path}\{email}"
 
-        if self.is_txt(file_name):
-            with open(path, 'r') as file:
-                file_content = file.read()
-
-                length = len(file_content)
-                client.send(str(length).encode())
-                client.recv(1024)
-                
-                client.send(file_content.encode())
-
-        elif self.is_bytes(file_name):
-            with open(path, 'rb') as file:
-                file_content = file.read()
-
-                length = len(file_content)
-                client.send(str(length).encode())
-                client.recv(1024)
-                
-                client.send(file_content)
-
+        if request.endswith("folder"):
+            path = os.path.join(path, file_name)
+            self.send_all_files_in_folder(client, path)
+            return
+        
+        self.send_all_files(client, path, [file_name])
+        
         conn.commit()
         conn.close()
 
     
-    def get_folder(self, client):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-        username = client.recv(1024).decode()
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
-        client.send("Joules^2".encode())
-
-        file_name = client.recv(1024).decode()
-        path = fr"{self.path}\{email}\{file_name}"
-        items = os.listdir(path)
-        files = ','.join(items)
-        client.send(files.encode())
-
-        for item in items:
-            full_path = os.path.join(path, item)
+    def send_all_files(self, client, folder_path, files):
+        for item in files:
             client.recv(1024)
+            full_path = os.path.join(folder_path, item)
             if self.is_txt(item):
                 with open(full_path, 'r') as file:
                     content = file.read()
@@ -483,9 +429,51 @@ class Server():
                     client.send(str(length).encode())
                     client.recv(1024)
                     client.send(content)
+            
+    
+    def send_all_files_in_folder(self, client, folder_path):
+        folders, files = self.get_and_send_folders_and_files(client, folder_path)
+        if not folders:
+            self.send_all_files(client, folder_path, files)
+            return
+        
+        for folder in folders:
+            path = os.path.join(folder_path, folder)
+            self.send_all_files(client, folder_path, files)
+            self.send_all_files_in_folder(client, path)
 
-        conn.commit()
-        conn.close()
+    
+    def get_and_send_folders_and_files(self, client, folder_path):
+        items = os.listdir(folder_path)
+        folder_names = []
+        file_names = []
+        
+        for item in items:
+            full_path = os.path.join(folder_path, item)
+            if os.path.isdir(full_path):
+                folder_names.append(item)
+            else:
+                file_names.append(item)
+
+        files = ','.join(file_names)
+        folders = ','.join(folder_names)
+        if folders == '':
+            client.send("none".encode())
+            folders = []
+        else:
+            client.send(folders.encode())
+            folders = folders.split(',')
+
+        client.recv(1024)
+
+        if files == '':
+            client.send("none".encode())
+            files = []
+        else:
+            client.send(files.encode())
+            files = files.split(',')
+
+        return folders, files
 
 
     def remove_file(self, client):

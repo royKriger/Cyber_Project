@@ -405,17 +405,68 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
+        full_path =  fr'C:\Users\roykr\Desktop\{label}'
         if name == "folder":
-            full_path =  fr'C:\Users\Pc2\Desktop\{label}'
             os.mkdir(full_path)
-            files = client.recv(1024).decode().split(',')
-
-            for file_name in files:
-                client.send("Joules".encode())
-                self.recieve_file(client, file_name, full_path)
+            self.recieve_all_files_and_folders(client, full_path)
             return
         
-        self.recieve_file(client, file_name, full_path)
+        client.send("Joules1".encode())
+        self.recieve_file(client, full_path)
+    
+
+    def recieve_all_files_and_folders(self, client, full_path):
+        folders, files = self.get_all_filenames(client)
+        if not folders:
+            self.get_all_files(client, files, full_path)
+            return
+
+        for folder in folders:
+            path = os.path.join(full_path, folder)
+            os.mkdir(path)
+            self.get_all_files(client, files, full_path)
+            self.recieve_all_files_and_folders(client, path)
+
+
+    def get_all_filenames(self, client):
+        folders = client.recv(1024).decode()
+        client.send("Joules".encode())
+        files = client.recv(1024).decode()
+
+        if files != "none":
+            files = files.split(',')
+        else:
+            files = []
+
+        if folders != "none":
+            folders = folders.split(',')
+        else:
+            folders = []
+
+        return folders, files
+
+
+    def get_all_files(self, client, files, full_path):
+        for item in files:
+            client.send("Joules".encode())
+            length = int(client.recv(1024).decode())
+            client.send("Joules1".encode())
+            
+            if self.is_txt(item):
+                file_content = ''
+                for i in range(length // 1024 + 1):
+                    file_content += client.recv(1024).decode()
+
+                with open(fr"{full_path}\{item}", 'w') as file:
+                    file.write(file_content)
+                
+            if self.is_bytes(item):
+                file_content = b''
+                for i in range(length // 1024 + 1):
+                    file_content += client.recv(1024)
+
+                with open(fr"{full_path}\{item}", 'wb') as file:
+                    file.write(file_content)
 
 
     def remove_folder_or_folder(self, event, btn):
@@ -469,7 +520,7 @@ class UserPage(wx.Panel):
         
         for folder in folders:
             path = os.path.join(folder_path, folder)
-            self.send_all_files(client, path, files)
+            self.send_all_files(client, folder_path, files)
             self.send_all_files_in_folder(client, path)
 
     
@@ -487,7 +538,7 @@ class UserPage(wx.Panel):
 
         files = ','.join(file_names)
         folders = ','.join(folder_names)
-
+        print(folders, files)
         if folders == '':
             client.send("none".encode())
             folders = []
@@ -506,25 +557,25 @@ class UserPage(wx.Panel):
 
         return folders, files
 
-    @staticmethod
-    def recieve_file(self, client, file_name, full_path):
+
+    def recieve_file(self, client, full_path):
         length = int(client.recv(1024).decode())
         client.send("Joules1".encode())
 
-        if self.is_txt(file_name):
+        if self.is_txt(full_path):
             file_content = ''
             for i in range(length // 1024 + 1):
                 file_content += client.recv(1024).decode()
 
-            with open(fr"{full_path}\{file_name}", 'w') as file:
+            with open(full_path, 'w') as file:
                 file.write(file_content)
             
-        if self.is_bytes(file_name):
+        if self.is_bytes(full_path):
             file_content = b''
             for i in range(length // 1024 + 1):
                 file_content += client.recv(1024)
 
-            with open(fr"{full_path}\{file_name}", 'wb') as file:
+            with open(full_path, 'wb') as file:
                 file.write(file_content)
 
 
