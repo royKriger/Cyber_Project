@@ -274,6 +274,73 @@ class UserPage(wx.Panel):
         self.print_files()
 
 
+    def send_all_files(self, client, folder_path, files):
+        for item in files:
+            client.recv(1024)
+            full_path = os.path.join(folder_path, item)
+            if self.is_txt(item):
+                with open(full_path, 'r') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(str(length).encode())
+                    client.recv(1024)
+                    client.send(content.encode())
+
+            if self.is_bytes(item):
+                with open(full_path, 'rb') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(str(length).encode())
+                    client.recv(1024)
+                    client.send(content)
+            
+    
+    def send_all_files_in_folder(self, client, folder_path):
+        folders, files = self.get_and_send_folders_and_files(client, folder_path)
+        if not folders:
+            self.send_all_files(client, folder_path, files)
+            return
+        
+        for folder in folders:
+            path = os.path.join(folder_path, folder)
+            self.send_all_files(client, folder_path, files)
+            self.send_all_files_in_folder(client, path)
+
+    
+    def get_and_send_folders_and_files(self, client, folder_path):
+        items = os.listdir(folder_path)
+        folder_names = []
+        file_names = []
+        
+        for item in items:
+            full_path = os.path.join(folder_path, item)
+            if os.path.isdir(full_path):
+                folder_names.append(item)
+            else:
+                file_names.append(item)
+
+        files = ','.join(file_names)
+        folders = ','.join(folder_names)
+        print(folders, files)
+        if folders == '':
+            client.send("none".encode())
+            folders = []
+        else:
+            client.send(folders.encode())
+            folders = folders.split(',')
+
+        client.recv(1024)
+
+        if files == '':
+            client.send("none".encode())
+            files = []
+        else:
+            client.send(files.encode())
+            files = files.split(',')
+
+        return folders, files
+
+
     def on_logo_click(self, event):
         if self.username == "admin":
             email = "admin@gmail.com"
@@ -489,73 +556,6 @@ class UserPage(wx.Panel):
         client.send(label.encode())
 
         self.print_files()
-
-
-    def send_all_files(self, client, folder_path, files):
-        for item in files:
-            client.recv(1024)
-            full_path = os.path.join(folder_path, item)
-            if self.is_txt(item):
-                with open(full_path, 'r') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(str(length).encode())
-                    client.recv(1024)
-                    client.send(content.encode())
-
-            if self.is_bytes(item):
-                with open(full_path, 'rb') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(str(length).encode())
-                    client.recv(1024)
-                    client.send(content)
-            
-    
-    def send_all_files_in_folder(self, client, folder_path):
-        folders, files = self.get_and_send_folders_and_files(client, folder_path)
-        if not folders:
-            self.send_all_files(client, folder_path, files)
-            return
-        
-        for folder in folders:
-            path = os.path.join(folder_path, folder)
-            self.send_all_files(client, folder_path, files)
-            self.send_all_files_in_folder(client, path)
-
-    
-    def get_and_send_folders_and_files(self, client, folder_path):
-        items = os.listdir(folder_path)
-        folder_names = []
-        file_names = []
-        
-        for item in items:
-            full_path = os.path.join(folder_path, item)
-            if os.path.isdir(full_path):
-                folder_names.append(item)
-            else:
-                file_names.append(item)
-
-        files = ','.join(file_names)
-        folders = ','.join(folder_names)
-        print(folders, files)
-        if folders == '':
-            client.send("none".encode())
-            folders = []
-        else:
-            client.send(folders.encode())
-            folders = folders.split(',')
-
-        client.recv(1024)
-
-        if files == '':
-            client.send("none".encode())
-            files = []
-        else:
-            client.send(files.encode())
-            files = files.split(',')
-
-        return folders, files
 
 
     def recieve_file(self, client, full_path):

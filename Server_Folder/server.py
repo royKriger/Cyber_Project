@@ -351,7 +351,7 @@ class Server():
         conn.close()
 
 
-    def jsend_filenames(self, client):
+    def send_filenames(self, client):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
         username = client.recv(1024).decode()
