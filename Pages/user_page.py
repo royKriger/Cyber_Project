@@ -392,12 +392,12 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
+        full_path =  fr'C:\Users\roykr\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
             return
-        print(full_path)
+        
         self.recieve_file(client, full_path)
     
 
@@ -468,7 +468,7 @@ class UserPage(wx.Panel):
         if self.is_txt(full_path):
             file_content = ''
             while len(file_content) < length:
-                file_content += client.recv(1024).decode()
+                file_content += client.recv(16384).decode()
 
             with open(full_path, 'w') as file:
                 file.write(file_content)
@@ -476,7 +476,7 @@ class UserPage(wx.Panel):
         if self.is_bytes(full_path):
             file_content = b''
             while len(file_content) < length:
-                file_content += client.recv(1024)
+                file_content += client.recv(16384)
 
             with open(full_path, 'wb') as file:
                 file.write(file_content)

@@ -316,7 +316,7 @@ class Server():
             if self.is_txt(item):
                 file_content = ''
                 while len(file_content) < length:
-                    file_content += client.recv(1024).decode()
+                    file_content += client.recv(16384).decode()
 
                 with open(fr"{full_path}\{item}", 'w') as file:
                     file.write(file_content)
@@ -324,7 +324,7 @@ class Server():
             if self.is_bytes(item):
                 file_content = b''
                 while len(file_content) < length:
-                    file_content += client.recv(1024)
+                    file_content += client.recv(16384)
 
                 with open(fr"{full_path}\{item}", 'wb') as file:
                     file.write(file_content)
