@@ -26,7 +26,7 @@ class UserPage(wx.Panel):
         self.logo = wx.StaticBitmap(self, wx.ID_ANY, bitmap)
         left_sidebar_sizer.Add(self.logo, 0, wx.ALL, 10)
         
-        self.add = wx.Button(self, label="+ Add", size=(100, 60))
+        self.add = wx.Button(self, label="+ Add", size=(100, 60), name="Add")
         self.Bind(wx.EVT_BUTTON, lambda event: self.file_or_folder(event), self.add)
         left_sidebar_sizer.Add(self.add, 0, wx.LEFT, 5)
         self.sizer.Add(left_sidebar_sizer, 0, wx.LEFT, 10)
@@ -99,32 +99,7 @@ class UserPage(wx.Panel):
 
 
     def file_or_folder(self, event):
-        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
-
-        btn = event.GetEventObject()
-        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
-
-        panel = wx.Panel(popup)
-        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
-        
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        file = wx.Button(panel, label="Upload file")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.open_file_dialoge(event), file)
-
-        folder = wx.Button(panel, label="Upload folder")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialoge(event), folder)
-
-        sizer.Add(file, 0, wx.ALL, 10)
-        sizer.Add(folder, 0, wx.EXPAND | wx.ALL, 5)
-        
-        panel.SetSizer(sizer)
-        sizer.Fit(panel)
-        popup.SetSize(panel.GetSize())
-
-        popup.Position(btn_pos, (100, -55))
-        popup.Popup()
-
+        self.show_popup(event, ["Upload file", "Upload folder"])
 
     def print_files(self):
         while self.main_sizer.GetItemCount() > 2:
@@ -176,6 +151,10 @@ class UserPage(wx.Panel):
 
 
     def open_file_dialoge(self, event):
+        file_dialog = wx.FileDialog(self, "Select a file")
+        if file_dialog.ShowModal() != wx.ID_OK:
+            return
+        
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send("Upload file".encode())
@@ -183,14 +162,9 @@ class UserPage(wx.Panel):
         public_key_pem = client.recv(2048)
         public_key = serialization.load_pem_public_key(public_key_pem)
 
-        data = self.username
-        encrypted_data = Utilities.encrypt(data.encode(), public_key)
+        encrypted_data = Utilities.encrypt(self.username.encode(), public_key)
 
         client.sendall(encrypted_data)
-        
-        file_dialog = wx.FileDialog(self, "Select a file")
-        if file_dialog.ShowModal() != wx.ID_OK:
-            return
         
         file_path = file_dialog.GetPath()
 
@@ -349,31 +323,7 @@ class UserPage(wx.Panel):
             client.send(self.username.encode())
             email = client.recv(1024).decode()
 
-        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
-
-        panel = wx.Panel(popup)
-        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        email = wx.StaticText(panel, label=email)
-
-        signout = wx.Button(panel, label="Sign out")
-        signout.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup))
-
-        sizer.Add(email, 0, wx.ALL, 10)
-        sizer.Add(signout, 0, wx.EXPAND | wx.ALL, 5)
-
-        panel.SetSizer(sizer)
-        sizer.Fit(panel)
-        popup.SetSize(panel.GetSize())
-
-        btn = event.GetEventObject()
-        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
-
-        popup.Position(btn_pos, (0, 0))
-        popup.Popup()
-
+        self.show_popup(event, ["Sign out"], [email])
 
     def sign_out(self, popup_win):
         popup_win.Hide()
@@ -412,32 +362,7 @@ class UserPage(wx.Panel):
     
 
     def on_click_folder_or_file(self, event):
-        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
-
-        btn = event.GetEventObject()
-        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
-
-        panel = wx.Panel(popup)
-        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
-        
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        download = wx.Button(panel, label="Download")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), download)
-
-        remove = wx.Button(panel, label="Delete")
-        panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_folder(event, btn), remove)
-
-        sizer.Add(download, 0, wx.ALL, 10)
-        sizer.Add(remove, 0, wx.EXPAND | wx.ALL, 5)
-        
-        panel.SetSizer(sizer)
-        sizer.Fit(panel)
-        popup.SetSize(panel.GetSize())
-
-        popup.Position(btn_pos, (0, 0))
-        popup.Popup()
-
+        self.show_popup(event, ["Download", "Delete"])
 
     def on_dclick_folder(self, event):
         button = event.GetEventObject()
@@ -557,6 +482,47 @@ class UserPage(wx.Panel):
 
             with open(full_path, 'wb') as file:
                 file.write(file_content)
+    
+
+    def show_popup(self, event, button_list, label_list = []):
+        popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
+
+        btn = event.GetEventObject()
+        btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
+
+        panel = wx.Panel(popup)
+        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
+        
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        for label_name in label_list:
+            label = wx.StaticText(panel, label=label_name)
+            sizer.Add(label, 0, wx.ALL, 10)
+
+        for button_name in button_list:
+            button = wx.Button(panel, label=button_name)
+            if button_name == "Upload file":
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_file_dialoge(event), button)
+            elif button_name == "Upload folder":
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialoge(event), button)
+            elif button_name == "Download":
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
+            elif button_name == "Delete":
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_folder(event, btn), button)
+            elif button_name == "Sign out":
+                panel.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup), button)
+            
+            sizer.Add(button, 0, wx.ALL, 10)
+        
+        panel.SetSizer(sizer)
+        sizer.Fit(panel)
+        popup.SetSize(panel.GetSize())
+
+        if btn.Name == "Add":
+            popup.Position(btn_pos, (100, -55))
+        else:
+            popup.Position(btn_pos, (0, 0))
+        popup.Popup()
 
 
     @staticmethod

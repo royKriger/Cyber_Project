@@ -46,7 +46,7 @@ class Server():
                             sock.close()
                         elif request == "Get email":
                             sock.send("Joules".encode())
-                            self.get_email(sock)
+                            self.send_email(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Get filenames":
@@ -335,7 +335,7 @@ class Server():
 
 
     def send_filenames(self, client):
-        email = self.get_email(client)
+        email = self.get_email(client).split('@')[0]
 
         client.send("Joules".encode())
         folder_names = []
@@ -371,7 +371,7 @@ class Server():
     
 
     def get_file_or_folder(self, client, request):
-        email = self.get_email(client)
+        email = self.get_email(client).split('@')[0]
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
@@ -455,7 +455,7 @@ class Server():
 
 
     def remove_file(self, client):
-        email = self.get_email(client)
+        email = self.get_email(client).split('@')[0]
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
@@ -473,7 +473,7 @@ class Server():
         username = client.recv(1024).decode()
         
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
+        email = conn_cur.fetchone()[0]
 
         conn.commit()
         conn.close()
