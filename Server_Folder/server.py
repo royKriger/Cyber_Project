@@ -250,17 +250,19 @@ class Server():
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
+        client.send("Joules^2".encode())
         username = client.recv(1024).decode()
         client.send("Joules^2".encode())
 
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        folder = client.recv(1024).decode()
-        folder_name = fr"{email}\{folder}"
+        folder_name = client.recv(1024).decode()
+
+        path = fr"{email}\{folder_name}"
         client.send("Joules".encode())
 
-        full_path = os.path.join(self.path, folder_name)
+        full_path = os.path.join(self.path, path)
         os.mkdir(full_path)
         
         self.recieve_all_files_and_folders(client, full_path)

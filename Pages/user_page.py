@@ -242,23 +242,25 @@ class UserPage(wx.Panel):
 
 
     def open_dir_dialoge(self, event):
-        client = socket.socket()
-        client.connect((Utilities.get_pc_ip(), 8200))
-        client.send("Upload folder".encode())
-
-        client.send(self.username.encode())
-        client.recv(1024)
-
         folder_dialog = wx.DirDialog(self, "Select a folder")
         if folder_dialog.ShowModal() != wx.ID_OK:
             return
         
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Upload folder".encode())
+
+        client.recv(1024)
+        client.send(self.username.encode())
+        print(client.recv(1024))
+
         folder_path = folder_dialog.GetPath()
 
         folder_name = folder_path.split("\\")[-1]
         if len(self.current_folder) > 0:
             folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
 
+        print(folder_name)
         client.send(folder_name.encode())
         client.recv(1024)
         folder_name = folder_path.split("\\")[-1]
