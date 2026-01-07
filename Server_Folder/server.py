@@ -33,44 +33,48 @@ class Server():
                 if sock == self.server:
                     client, client_addr = self.server.accept()
                     all_sock.append(client)
+                    client.settimeout(2.0)
                 else:
-                    request = sock.recv(1024).decode()
-                    if request == "Sign up" or request == "Log in":
-                        sock.send("Joules".encode())
-                        self.accept_client(sock)
-                        all_sock.remove(sock)
-                    elif request == "Log out":
+                    try:
+                        request = sock.recv(1024).decode()
+                        if request == "Sign up" or request == "Log in":
+                            sock.send("Joules".encode())
+                            self.accept_client(sock)
+                            all_sock.remove(sock)
+                        elif request == "Log out":
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Get email":
+                            sock.send("Joules".encode())
+                            self.get_email(sock)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Get filenames":
+                            sock.send("Joules".encode())
+                            self.send_filenames(sock)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Get folder" or request == "Get file":
+                            sock.send("Joules".encode())
+                            self.get_file_or_folder(sock, request)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Remove file":
+                            sock.send("Joules".encode())
+                            self.remove_file(sock)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Upload file":
+                            self.handle_file(sock)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request == "Upload folder":
+                            self.handle_folder(sock)
+                            all_sock.remove(sock)
+                            sock.close()
+                    except TimeoutError:
                         all_sock.remove(sock)
                         sock.close()
-                    elif request == "Get email":
-                        sock.send("Joules".encode())
-                        self.get_email(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Get filenames":
-                        sock.send("Joules".encode())
-                        self.send_filenames(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Get folder" or request == "Get file":
-                        sock.send("Joules".encode())
-                        self.get_file_or_folder(sock, request)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Remove file":
-                        sock.send("Joules".encode())
-                        self.remove_file(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Upload file":
-                        self.handle_file(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-                    elif request == "Upload folder":
-                        self.handle_folder(sock)
-                        all_sock.remove(sock)
-                        sock.close()
-
 
     def accept_client(self, client):
         conn = sqlite3.connect(self.database)
@@ -133,7 +137,7 @@ class Server():
             return
 
         encrypted_data = client.recv(4096)
-        
+
         decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
@@ -164,7 +168,7 @@ class Server():
 
         client.sendall(public_key_pem)
         encrypted_data = client.recv(4096)
-
+        
         decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
@@ -180,7 +184,7 @@ class Server():
         email = conn_cur.fetchone()[0].split('@')[0]
 
         encrypted_data = client.recv(4096)
-
+        
         decrypted_bytes = self.private_key.decrypt(
             encrypted_data,
             padding.OAEP(
@@ -191,7 +195,11 @@ class Server():
         )
         file_name = fr"{email}\{decrypted_bytes.decode()}"
         client.send("Joules^3".encode())
-        length = int(client.recv(1024).decode())
+        try:
+            length = int(client.recv(1024).decode())
+        except TypeError:
+            raise(TimeoutError)
+
         client.send("Joules^4".encode())
 
         if self.is_txt(file_name):
@@ -320,7 +328,11 @@ class Server():
     def get_all_files(self, client, files, full_path):
         for item in files:
             client.send("Joules".encode())
-            length = int(client.recv(1024).decode())
+            try:
+                length = int(client.recv(1024).decode())
+            except TypeError:
+                raise(TimeoutError)
+
             client.send("Joules1".encode())
             
             if self.is_txt(item):
@@ -340,35 +352,28 @@ class Server():
                     file.write(file_content)
 
         
-    def get_email(self, client):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-        username = client.recv(1024).decode()
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0]
+    def send_email(self, client):
+        email = self.get_email(client)
         client.send(email.encode())
-        conn.commit()
-        conn.close()
 
 
     def send_filenames(self, client):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-        username = client.recv(1024).decode()
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
+        email = self.get_email(client)
 
         client.send("Joules".encode())
         folder_names = []
         file_names = []
         folder = client.recv(1024).decode()
         path = fr"{self.path}\{email}"
-        if folder != '.........':
-            path += fr"\{folder}"
+        folder, check = folder.split("\n")
+        if check:
+            path = os.path.join(path, folder)
+        
         for item in os.listdir(path):
             full_path = os.path.join(path, item)
             if os.path.isdir(full_path):
                 folder_names.append(item)
+
             else:
                 file_names.append(item)
 
@@ -381,7 +386,7 @@ class Server():
             client.send(folders.encode())
 
         client.recv(1024)
-
+        
         if files == '':
             client.send("none".encode())
         else:
@@ -389,14 +394,11 @@ class Server():
     
 
     def get_file_or_folder(self, client, request):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-        username = client.recv(1024).decode()
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
+        email = self.get_email(client)
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
+        
         path = fr"{self.path}\{email}"
 
         if request.endswith("folder"):
@@ -406,13 +408,11 @@ class Server():
         
         self.send_all_files(client, path, [file_name])
         
-        conn.commit()
-        conn.close()
-
     
     def send_all_files(self, client, folder_path, files):
         for item in files:
             client.recv(1024)
+            
             full_path = os.path.join(folder_path, item)
             if self.is_txt(item):
                 with open(full_path, 'r') as file:
@@ -420,6 +420,7 @@ class Server():
                     length = len(content)
                     client.send(str(length).encode())
                     client.recv(1024)
+
                     client.send(content.encode())
 
             if self.is_bytes(item):
@@ -428,6 +429,7 @@ class Server():
                     length = len(content)
                     client.send(str(length).encode())
                     client.recv(1024)
+                    
                     client.send(content)
             
     
@@ -477,26 +479,37 @@ class Server():
 
 
     def remove_file(self, client):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-        username = client.recv(1024).decode()
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
+        email = self.get_email(client)
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
+
         path = fr"{self.path}\{email}\{file_name}"
         if os.path.isdir(path):
             shutil.rmtree(path)
         else:
             os.remove(path)
 
+    
+    def get_email(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+        username = client.recv(1024).decode()
+        
+        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
+        email = conn_cur.fetchone()[0].split('@')[0]
+
+        conn.commit()
+        conn.close()
+
+        return email
+    
 
     @staticmethod
     def is_bytes(file_name):
         return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
                 or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
-                or file_name.endswith("jfif"))
+                or file_name.endswith("jfif") or file_name.endswith("bmp"))
     
 
     @staticmethod

@@ -392,10 +392,10 @@ class UserPage(wx.Panel):
         client.send(self.username.encode())
         client.recv(1024)
         if len(self.current_folder) > 0:
-            path = ('\\').join(self.current_folder)
+            path = ('\\').join(self.current_folder) + "\n "
             client.send(path.encode())
         else:
-            client.send(".........".encode())
+            client.send("\n".encode())
 
         folders = client.recv(1024).decode()
         client.send("Joules".encode())
@@ -472,13 +472,12 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\roykr\Desktop\{label}'
+        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
             return
         
-        client.send("Joules1".encode())
         self.recieve_file(client, full_path)
     
 
@@ -559,6 +558,7 @@ class UserPage(wx.Panel):
 
 
     def recieve_file(self, client, full_path):
+        client.send("Joules1".encode())
         length = int(client.recv(1024).decode())
         client.send("Joules1".encode())
 
