@@ -226,7 +226,7 @@ class UserPage(wx.Panel):
 
         client.recv(1024)
         client.send(self.username.encode())
-        print(client.recv(1024))
+        client.recv(1024)
 
         folder_path = folder_dialog.GetPath()
 
@@ -234,7 +234,6 @@ class UserPage(wx.Panel):
         if len(self.current_folder) > 0:
             folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
 
-        print(folder_name)
         client.send(folder_name.encode())
         client.recv(1024)
         folder_name = folder_path.split("\\")[-1]
@@ -267,7 +266,6 @@ class UserPage(wx.Panel):
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
-        print(folders, files)
         if not folders:
             self.send_all_files(client, folder_path, files)
             return
@@ -399,7 +397,7 @@ class UserPage(wx.Panel):
             os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
             return
-        
+        print(full_path)
         self.recieve_file(client, full_path)
     
 
@@ -529,7 +527,7 @@ class UserPage(wx.Panel):
     def is_bytes(file_name):
         return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
                 or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
-                or file_name.endswith("jfif"))
+                or file_name.endswith("jfif") or file_name.endswith("bmp") or file_name.endswith("jar"))
     
 
     @staticmethod

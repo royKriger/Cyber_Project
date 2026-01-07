@@ -311,7 +311,8 @@ class Server():
                 raise(TimeoutError)
 
             client.send("Joules1".encode())
-            
+            print(item)
+            print(length)
             if self.is_txt(item):
                 file_content = ''
                 while len(file_content) < length:
@@ -485,7 +486,7 @@ class Server():
     def is_bytes(file_name):
         return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
                 or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
-                or file_name.endswith("jfif") or file_name.endswith("bmp"))
+                or file_name.endswith("jfif") or file_name.endswith("bmp") or file_name.endswith("jar"))
     
 
     @staticmethod
