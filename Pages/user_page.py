@@ -544,7 +544,7 @@ class UserPage(wx.Panel):
 
         if self.is_txt(full_path):
             file_content = ''
-            for i in range(length // 1024 + 1):
+            while len(file_content) < length:
                 file_content += client.recv(1024).decode()
 
             with open(full_path, 'w') as file:
@@ -552,7 +552,7 @@ class UserPage(wx.Panel):
             
         if self.is_bytes(full_path):
             file_content = b''
-            for i in range(length // 1024 + 1):
+            while len(file_content) < length:
                 file_content += client.recv(1024)
 
             with open(full_path, 'wb') as file:
