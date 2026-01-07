@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import hashes
 
 class Utilities():
     def get_pc_ip():
-        return "localhost"
+        return "locahost"
     
 
     def check_user_input(self, label, username):

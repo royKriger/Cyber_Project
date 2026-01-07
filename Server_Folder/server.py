@@ -250,39 +250,14 @@ class Server():
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
-        public_key_pem = self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-
-        client.sendall(public_key_pem)
-        encrypted_data = client.recv(4096)
-
-        decrypted_bytes = self.private_key.decrypt(
-            encrypted_data,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
+        username = client.recv(1024).decode()
         client.send("Joules^2".encode())
 
-        username = decrypted_bytes.decode()
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
-        encrypted_data = client.recv(4096)
-
-        decrypted_bytes = self.private_key.decrypt(
-            encrypted_data,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        folder_name = fr"{email}\{decrypted_bytes.decode()}"
+        folder = client.recv(1024).decode()
+        folder_name = fr"{email}\{folder}"
         client.send("Joules".encode())
 
         full_path = os.path.join(self.path, folder_name)
@@ -420,7 +395,6 @@ class Server():
                     length = len(content)
                     client.send(str(length).encode())
                     client.recv(1024)
-
                     client.send(content.encode())
 
             if self.is_bytes(item):

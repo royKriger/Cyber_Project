@@ -246,13 +246,9 @@ class UserPage(wx.Panel):
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send("Upload folder".encode())
 
-        public_key_pem = client.recv(2048)
-        public_key = serialization.load_pem_public_key(public_key_pem)
+        client.send(self.username.encode())
+        client.recv(1024)
 
-        encrypted_data = Utilities.encrypt(self.username.encode(), public_key)
-
-        client.sendall(encrypted_data)
-        
         folder_dialog = wx.DirDialog(self, "Select a folder")
         if folder_dialog.ShowModal() != wx.ID_OK:
             return
@@ -260,14 +256,12 @@ class UserPage(wx.Panel):
         folder_path = folder_dialog.GetPath()
 
         folder_name = folder_path.split("\\")[-1]
-        client.recv(1024)
         if len(self.current_folder) > 0:
             folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
 
-        encrypted_data = Utilities.encrypt(folder_name.encode(), public_key)
-        folder_name = folder_path.split("\\")[-1]
-        client.sendall(encrypted_data)
+        client.send(folder_name.encode())
         client.recv(1024)
+        folder_name = folder_path.split("\\")[-1]
 
         self.send_all_files_in_folder(client, folder_path)
         self.folders.append(folder_name)
@@ -297,6 +291,7 @@ class UserPage(wx.Panel):
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
+        print(folders, files)
         if not folders:
             self.send_all_files(client, folder_path, files)
             return
@@ -321,7 +316,7 @@ class UserPage(wx.Panel):
 
         files = ','.join(file_names)
         folders = ','.join(folder_names)
-        print(folders, files)
+
         if folders == '':
             client.send("none".encode())
             folders = []
@@ -516,6 +511,7 @@ class UserPage(wx.Panel):
         for item in files:
             path = os.path.join(full_path, item)
             self.recieve_file(client, path)
+
 
     def remove_folder_or_folder(self, event, btn):
         client = socket.socket()
