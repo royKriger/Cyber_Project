@@ -514,26 +514,8 @@ class UserPage(wx.Panel):
 
     def get_all_files(self, client, files, full_path):
         for item in files:
-            client.send("Joules".encode())
-            length = int(client.recv(1024).decode())
-            client.send("Joules1".encode())
-            
-            if self.is_txt(item):
-                file_content = ''
-                for i in range(length // 1024 + 1):
-                    file_content += client.recv(1024).decode()
-
-                with open(fr"{full_path}\{item}", 'w') as file:
-                    file.write(file_content)
-                
-            if self.is_bytes(item):
-                file_content = b''
-                for i in range(length // 1024 + 1):
-                    file_content += client.recv(1024)
-
-                with open(fr"{full_path}\{item}", 'wb') as file:
-                    file.write(file_content)
-
+            path = os.path.join(full_path, item)
+            self.recieve_file(client, path)
 
     def remove_folder_or_folder(self, event, btn):
         client = socket.socket()
