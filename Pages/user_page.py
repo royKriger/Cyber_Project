@@ -166,51 +166,35 @@ class UserPage(wx.Panel):
 
         client.sendall(encrypted_data)
         
-        file_path = file_dialog.GetPath()
+        full_path = file_dialog.GetPath()
 
-        file_name = file_path.split("\\")[-1]
+        file_name = full_path.split("\\")[-1]
         client.recv(1024)
         if len(self.current_folder) > 0:
             file_name = ('\\').join(self.current_folder) + '\\' + file_name
 
         encrypted_data = Utilities.encrypt(file_name.encode(), public_key)
-        file_name = file_path.split("\\")[-1]
+        file_name = full_path.split("\\")[-1]
         client.sendall(encrypted_data)
         client.recv(1024)
 
-        if self.is_txt(file_name):
-            with open(file_path, "r") as file:
-                lines = file.readlines()
-                content = ""
-                for line in lines:
-                    content += line
-
-                length = len(content) // 190 + 1
-                client.send(str(length).encode())
+        if self.is_txt(full_path):
+            with open(full_path, 'r') as file:
+                content = file.read()
+                length = len(content)
+                client.send(f"txt|{length}".encode())
                 client.recv(1024)
+                client.send(content.encode())
+            return
 
-                encrypted_file = b''
-                for i in range(0, len(content), 190):
-                    chunk = content[i: i + 190]
-                    encrypted_file += Utilities.encrypt(chunk.encode(), public_key)
-
-                client.sendall(encrypted_file)
-
-        elif self.is_bytes(file_name):
-            with open(file_path, "rb") as file:
-                image_bytes = file.read()
-
-                length = len(image_bytes) // 190 + 1
-                client.send(str(length).encode())
-                client.recv(1024)
-
-                encrypted_image = b''
-                for i in range(0, len(image_bytes), 190):
-                    chunk = image_bytes[i:i + 190]
-                    encrypted_image += Utilities.encrypt(chunk, public_key)
-
-                client.sendall(encrypted_image)
-                
+        with open(full_path, 'rb') as file:
+            content = file.read()
+            length = len(content)
+            client.send(f"bytes|{length}".encode())
+            client.recv(1024)
+            
+            client.send(content)
+        
         self.files.append(file_name)
         self.print_files()
 
@@ -247,21 +231,21 @@ class UserPage(wx.Panel):
         for item in files:
             client.recv(1024)
             full_path = os.path.join(folder_path, item)
-            if self.is_txt(item):
+            if self.is_txt(full_path):
                 with open(full_path, 'r') as file:
                     content = file.read()
                     length = len(content)
-                    client.send(str(length).encode())
+                    client.send(f"txt|{length}".encode())
                     client.recv(1024)
                     client.send(content.encode())
+                return
 
-            if self.is_bytes(item):
-                with open(full_path, 'rb') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(str(length).encode())
-                    client.recv(1024)
-                    client.send(content)
+            with open(full_path, 'rb') as file:
+                content = file.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                client.send(content)
             
     
     def send_all_files_in_folder(self, client, folder_path):
@@ -398,6 +382,7 @@ class UserPage(wx.Panel):
             self.recieve_all_files_and_folders(client, full_path)
             return
         
+        client.recv(1024)
         self.recieve_file(client, full_path)
     
 
@@ -462,24 +447,23 @@ class UserPage(wx.Panel):
 
     def recieve_file(self, client, full_path):
         client.send("Joules1".encode())
-        length = int(client.recv(1024).decode())
+        data = client.recv(1024).decode()
+        type, length = data.split('|')[0], int(data.split('|')[-1])
+
         client.send("Joules1".encode())
 
-        if self.is_txt(full_path):
-            file_content = ''
-            while len(file_content) < length:
-                file_content += client.recv(16384).decode()
+        if type == 'txt':
+            file_content = client.recv(length).decode()
 
             with open(full_path, 'w') as file:
                 file.write(file_content)
-            
-        if self.is_bytes(full_path):
-            file_content = b''
-            while len(file_content) < length:
-                file_content += client.recv(16384)
 
-            with open(full_path, 'wb') as file:
-                file.write(file_content)
+            return
+            
+        file_content = client.recv(length)
+
+        with open(full_path, 'wb') as file:
+            file.write(file_content)
     
 
     def show_popup(self, event, button_list, label_list = []):
@@ -521,18 +505,21 @@ class UserPage(wx.Panel):
         else:
             popup.Position(btn_pos, (0, 0))
         popup.Popup()
-
-
-    @staticmethod
-    def is_bytes(file_name):
-        return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
-                or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
-                or file_name.endswith("jfif") or file_name.endswith("bmp") or file_name.endswith("jar"))
     
 
     @staticmethod
-    def is_txt(file_name):
-        return file_name.endswith("TXT") or file_name.endswith("txt") or file_name.endswith("py")
+    def is_txt(path):
+        with open(path, "rb") as file:
+            chunk = file.read(4096)
+
+        if b"\x00" in chunk:
+            return False
+
+        try:
+            chunk.decode()
+            return True
+        except UnicodeDecodeError:
+            return False
     
 
     def OnLeftDown(self, event):

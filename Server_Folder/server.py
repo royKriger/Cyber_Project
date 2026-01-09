@@ -194,53 +194,29 @@ class Server():
             )
         )
         file_name = fr"{email}\{decrypted_bytes.decode()}"
+        full_path = os.path.join(self.path, file_name)
+
         client.send("Joules^3".encode())
+        data = client.recv(1024).decode()
         try:
-            length = int(client.recv(1024).decode())
+            type, length = data.split('|')[0], int(data.split('|')[-1])
         except TypeError:
             raise(TimeoutError)
 
         client.send("Joules^4".encode())
+        
+        if type == 'txt':
+            file_content = client.recv(length).decode()
 
-        if self.is_txt(file_name):
-            encrypted_file = b''
-            with open(fr"{self.path}\{file_name}", 'w') as file:
-                for i in range(length):
-                    encrypted_file += client.recv(1024)
+            with open(full_path, 'w') as file:
+                file.write(file_content)
 
-                decrypted_file = b''
-                for i in range(0, len(encrypted_file), 256):
-                    chunk = encrypted_file[i:i + 256]
-                    decrypted_file += self.private_key.decrypt(
-                        chunk,
-                        padding.OAEP(
-                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                            algorithm=hashes.SHA256(),
-                            label=None
-                        )
-                    )
-                decrypted_file = decrypted_file.decode()
-                file.write(decrypted_file)
+            return
+            
+        file_content = client.recv(length)
 
-        elif self.is_bytes(file_name):
-            encrypted_image = b''
-            with open(fr"{self.path}\{file_name}", 'wb') as file:
-                for i in range(length):
-                    encrypted_image += client.recv(1024)
-
-                decrypted_image = b''
-                for i in range(0, len(encrypted_image), 256):
-                    chunk = encrypted_image[i:i + 256]
-                    decrypted_image += self.private_key.decrypt(
-                        chunk,
-                        padding.OAEP(
-                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                            algorithm=hashes.SHA256(),
-                            label=None
-                        )
-                    )
-
-                file.write(decrypted_image)
+        with open(full_path, 'wb') as file:
+            file.write(file_content)
 
         conn.commit()
         conn.close()
@@ -305,29 +281,32 @@ class Server():
     def get_all_files(self, client, files, full_path):
         for item in files:
             client.send("Joules".encode())
+            data = client.recv(1024).decode()
             try:
-                length = int(client.recv(1024).decode())
+                type, length = data.split('|')[0], int(data.split('|')[-1])
             except TypeError:
                 raise(TimeoutError)
-
             client.send("Joules1".encode())
+
             print(item)
             print(length)
-            if self.is_txt(item):
-                file_content = ''
-                while len(file_content) < length:
-                    file_content += client.recv(16384).decode()
 
-                with open(fr"{full_path}\{item}", 'w') as file:
+            path = os.path.join(full_path, item)
+            
+            file_content = client.recv(length)
+            while len(file_content) < length:
+                file_content += client.recv(length)
+
+            if type == 'txt':
+                file_content = file_content.decode()
+                with open(path, 'w') as file:
                     file.write(file_content)
+
+                return
                 
-            if self.is_bytes(item):
-                file_content = b''
-                while len(file_content) < length:
-                    file_content += client.recv(16384)
 
-                with open(fr"{full_path}\{item}", 'wb') as file:
-                    file.write(file_content)
+            with open(path, 'wb') as file:
+                file.write(file_content)
 
         
     def send_email(self, client):
@@ -384,6 +363,7 @@ class Server():
             self.send_all_files_in_folder(client, path)
             return
         
+        client.send("Joules1".encode())
         self.send_all_files(client, path, [file_name])
         
     
@@ -392,22 +372,22 @@ class Server():
             client.recv(1024)
             
             full_path = os.path.join(folder_path, item)
-            if self.is_txt(item):
+            if self.is_txt(full_path):
                 with open(full_path, 'r') as file:
                     content = file.read()
                     length = len(content)
-                    client.send(str(length).encode())
+                    client.send(f"txt|{length}".encode())
                     client.recv(1024)
                     client.send(content.encode())
+                return
 
-            if self.is_bytes(item):
-                with open(full_path, 'rb') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(str(length).encode())
-                    client.recv(1024)
-                    
-                    client.send(content)
+            with open(full_path, 'rb') as file:
+                content = file.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                
+                client.send(content)
             
     
     def send_all_files_in_folder(self, client, folder_path):
@@ -480,18 +460,21 @@ class Server():
         conn.close()
 
         return email
-    
+        
 
     @staticmethod
-    def is_bytes(file_name):
-        return (file_name.endswith("jpeg") or file_name.endswith("jpg") or file_name.endswith("png")
-                or file_name.endswith("gif") or file_name.endswith("exe") or file_name.endswith("avif")
-                or file_name.endswith("jfif") or file_name.endswith("bmp") or file_name.endswith("jar"))
-    
+    def is_txt(path):
+        with open(path, "rb") as file:
+            chunk = file.read(4096)
 
-    @staticmethod
-    def is_txt(file_name):
-        return file_name.endswith("TXT") or file_name.endswith("txt") or file_name.endswith("py")
+        if b"\x00" in chunk:
+            return False
+
+        try:
+            chunk.decode()
+            return True
+        except UnicodeDecodeError:
+            return False
     
 
 server = Server()
