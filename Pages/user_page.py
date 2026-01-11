@@ -129,7 +129,7 @@ class UserPage(wx.Panel):
 
             button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{self.folders[i]}", name="folder")
             button.Bind(wx.EVT_LEFT_DCLICK, lambda event: self.on_dclick_folder(event))
-            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_folder_or_file(event), button)
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Delete"]), button)
             folder_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         for i in range(len(self.files)):
@@ -138,7 +138,7 @@ class UserPage(wx.Panel):
                 file_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
             button = wx.Button(self.main_panel, wx.ID_ANY, label=f"{self.files[i]}", name="file")
-            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.on_click_folder_or_file(event), button)
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Delete"]), button)
             file_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         folders_sizer.Add(folder_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -178,6 +178,11 @@ class UserPage(wx.Panel):
         client.sendall(encrypted_data)
         client.recv(1024)
 
+        size = os.path.getsize(full_path)
+        if full_path.endswith('.zip'):
+            if size > 60000000:
+                return
+            
         if self.is_txt(full_path):
             with open(full_path, 'r') as file:
                 content = file.read()
@@ -238,14 +243,14 @@ class UserPage(wx.Panel):
                     client.send(f"txt|{length}".encode())
                     client.recv(1024)
                     client.send(content.encode())
-                return
 
-            with open(full_path, 'rb') as file:
-                content = file.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                client.send(content)
+            else:
+                with open(full_path, 'rb') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(f"bytes|{length}".encode())
+                    client.recv(1024)
+                    client.send(content)
             
     
     def send_all_files_in_folder(self, client, folder_path):
@@ -343,9 +348,6 @@ class UserPage(wx.Panel):
         return folders, files
     
 
-    def on_click_folder_or_file(self, event):
-        self.show_popup(event, ["Download", "Delete"])
-
     def on_dclick_folder(self, event):
         button = event.GetEventObject()
         folder = button.Label
@@ -376,7 +378,7 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\roykr\Desktop\{label}'
+        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
@@ -452,16 +454,17 @@ class UserPage(wx.Panel):
 
         client.send("Joules1".encode())
 
-        if type == 'txt':
-            file_content = client.recv(length).decode()
+        file_content = client.recv(length)
+        while len(file_content) < length:
+            file_content += client.recv(length)
 
+        if type == 'txt':
+            file_content = file_content.decode()
             with open(full_path, 'w') as file:
                 file.write(file_content)
 
             return
             
-        file_content = client.recv(length)
-
         with open(full_path, 'wb') as file:
             file.write(file_content)
     

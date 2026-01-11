@@ -288,8 +288,7 @@ class Server():
                 raise(TimeoutError)
             client.send("Joules1".encode())
 
-            print(item)
-            print(length)
+            print(item, length)
 
             path = os.path.join(full_path, item)
             
@@ -302,11 +301,9 @@ class Server():
                 with open(path, 'w') as file:
                     file.write(file_content)
 
-                return
-                
-
-            with open(path, 'wb') as file:
-                file.write(file_content)
+            else:
+                with open(path, 'wb') as file:
+                    file.write(file_content)
 
         
     def send_email(self, client):
@@ -379,15 +376,15 @@ class Server():
                     client.send(f"txt|{length}".encode())
                     client.recv(1024)
                     client.send(content.encode())
-                return
 
-            with open(full_path, 'rb') as file:
-                content = file.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                
-                client.send(content)
+            else:
+                with open(full_path, 'rb') as file:
+                    content = file.read()
+                    length = len(content)
+                    client.send(f"bytes|{length}".encode())
+                    client.recv(1024)
+                    
+                    client.send(content)
             
     
     def send_all_files_in_folder(self, client, folder_path):
