@@ -366,22 +366,24 @@ class UserPage(wx.Panel):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         name = btn.Name
-        client.send(f"Get {name}".encode())
+        client.send(f"Get {name}".encode()) #Check to see which button (file/folder) called the function and using that I sent the correct name for the server.
         client.recv(1024)
         client.send(self.username.encode())
         client.recv(1024)
 
         label = btn.Label
-        if len(self.current_folder) > 0:
-            label = ('\\').join(self.current_folder) + '\\' + label
+        if len(self.current_folder) > 0: #Checks to see if I'm in a folder within the interface 
+            label = ('\\').join(self.current_folder) + '\\' + label #If so I append the path to the folder I'm currently in to the name of the file/folder
 
         client.send(label.encode())
         label = btn.Label
 
         full_path =  fr'C:\Users\Pc2\Desktop\{label}'
         if name == "folder":
-            os.mkdir(full_path)
+            os.mkdir(full_path) #Makes a new folder in the desktop
             self.recieve_all_files_and_folders(client, full_path)
+            """Function that saves all the files and folders in the folder we created
+              on the desktop, while mantaining their order and structure"""
             return
         
         client.recv(1024)
@@ -425,7 +427,7 @@ class UserPage(wx.Panel):
             self.recieve_file(client, path)
 
 
-    def remove_folder_or_folder(self, event, btn):
+    def remove_folder_or_files(self, event, btn):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         name = btn.Name
@@ -493,7 +495,7 @@ class UserPage(wx.Panel):
             elif button_name == "Download":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
             elif button_name == "Delete":
-                panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_folder(event, btn), button)
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_files(event, btn), button)
             elif button_name == "Sign out":
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup), button)
             
