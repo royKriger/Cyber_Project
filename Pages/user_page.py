@@ -27,7 +27,7 @@ class UserPage(wx.Panel):
         left_sidebar_sizer.Add(self.logo, 0, wx.ALL, 10)
         
         self.add = wx.Button(self, label="+ Add", size=(100, 60), name="Add")
-        self.Bind(wx.EVT_BUTTON, lambda event: self.file_or_folder(event), self.add)
+        self.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Upload file", "Upload folder"]), self.add)
         left_sidebar_sizer.Add(self.add, 0, wx.LEFT, 5)
         self.sizer.Add(left_sidebar_sizer, 0, wx.LEFT, 10)
         
@@ -97,9 +97,6 @@ class UserPage(wx.Panel):
         self.print_files()
         self.path_buttons = self.path_buttons[0:stop + 1]
 
-
-    def file_or_folder(self, event):
-        self.show_popup(event, ["Upload file", "Upload folder"])
 
     def print_files(self):
         while self.main_sizer.GetItemCount() > 2:
@@ -182,7 +179,14 @@ class UserPage(wx.Panel):
         if full_path.endswith('.zip'):
             if size > 60000000:
                 return
-            
+            with open(full_path, 'rb') as file:
+                content = file.read()
+                length = len(content)
+                client.send(f"zip|{length}".encode())
+                client.recv(1024)
+                
+                client.sendall(content)
+
         if self.is_txt(full_path):
             with open(full_path, 'r') as file:
                 content = file.read()

@@ -194,29 +194,8 @@ class Server():
             )
         )
         file_name = fr"{email}\{decrypted_bytes.decode()}"
-        full_path = os.path.join(self.path, file_name)
 
-        client.send("Joules^3".encode())
-        data = client.recv(1024).decode()
-        try:
-            type, length = data.split('|')[0], int(data.split('|')[-1])
-        except TypeError:
-            raise(TimeoutError)
-
-        client.send("Joules^4".encode())
-        
-        if type == 'txt':
-            file_content = client.recv(length).decode()
-
-            with open(full_path, 'w') as file:
-                file.write(file_content)
-
-            return
-            
-        file_content = client.recv(length)
-
-        with open(full_path, 'wb') as file:
-            file.write(file_content)
+        self.get_all_files(client, [file_name], self.path)
 
         conn.commit()
         conn.close()
@@ -299,6 +278,10 @@ class Server():
             if type == 'txt':
                 file_content = file_content.decode()
                 with open(path, 'w') as file:
+                    file.write(file_content)
+
+            elif type == 'zip':
+                with open(path, 'wb') as file:
                     file.write(file_content)
 
             else:
