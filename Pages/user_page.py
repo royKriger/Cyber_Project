@@ -50,7 +50,7 @@ class UserPage(wx.Panel):
         self.path_buttons = []
 
         button = wx.Button(self.main_panel, label=self.username, size=(60, 40))
-        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.reset(event), button)
+        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
         self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         self.path_buttons.append(button)
 
@@ -77,7 +77,7 @@ class UserPage(wx.Panel):
         self.Layout()
 
 
-    def reset(self, event):
+    def show_current_folder_contents(self, event):
         btn = event.GetEventObject()
         stop = self.path_buttons.index(btn)
         while self.path_sizer.GetItemCount() > stop + 2:
@@ -173,20 +173,20 @@ class UserPage(wx.Panel):
         encrypted_data = Utilities.encrypt(file_name.encode(), public_key)
         file_name = full_path.split("\\")[-1]
         client.sendall(encrypted_data)
-        client.recv(1024)
+        file_exists = client.recv(1024).decode()
+        if file_exists == 'exists!':
+            frame = wx.Frame(None, title='File already exists!', size=(150, 100),
+                             name="File already exists!", id=wx.ID_ANY, pos=wx.DefaultPosition, 
+                             style=wx.DEFAULT_FRAME_STYLE)
+            frame.Show()
+            sizer = wx.BoxSizer(wx.VERTICAL)
+            label = wx.StaticText(frame, wx.ID_ANY, "File already exists!")
+            sizer.Add(label, proportion=1, flag=wx.EXPAND | wx.ALL)
 
-        size = os.path.getsize(full_path)
-        if full_path.endswith('.zip'):
-            if size > 60000000:
-                return
-            with open(full_path, 'rb') as file:
-                content = file.read()
-                length = len(content)
-                client.send(f"zip|{length}".encode())
-                client.recv(1024)
-                
-                client.sendall(content)
-
+            frame.SetSizer(sizer)
+            frame.Layout()
+            return
+        
         if self.is_txt(full_path):
             with open(full_path, 'r') as file:
                 content = file.read()
@@ -194,15 +194,15 @@ class UserPage(wx.Panel):
                 client.send(f"txt|{length}".encode())
                 client.recv(1024)
                 client.send(content.encode())
-            return
 
-        with open(full_path, 'rb') as file:
-            content = file.read()
-            length = len(content)
-            client.send(f"bytes|{length}".encode())
-            client.recv(1024)
-            
-            client.send(content)
+        else:
+            with open(full_path, 'rb') as file:
+                content = file.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                
+                client.send(content)
         
         self.files.append(file_name)
         self.print_files()
@@ -236,36 +236,40 @@ class UserPage(wx.Panel):
         self.print_files()
 
 
-    def send_all_files(self, client, folder_path, files):
-        for item in files:
-            client.recv(1024)
-            full_path = os.path.join(folder_path, item)
-            if self.is_txt(full_path):
-                with open(full_path, 'r') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(f"txt|{length}".encode())
-                    client.recv(1024)
-                    client.send(content.encode())
+    def send_all_files(self, client, folder_path, file):
+        client.recv(1024)
+        
+        full_path = os.path.join(folder_path, file)
+        if self.is_txt(full_path):
+            with open(full_path, 'r') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"txt|{length}".encode())
+                client.recv(1024)
 
-            else:
-                with open(full_path, 'rb') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(f"bytes|{length}".encode())
-                    client.recv(1024)
-                    client.send(content)
+                client.send(content.encode())
+
+        else:
+            with open(full_path, 'rb') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                
+                client.send(content)
             
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
         if not folders:
-            self.send_all_files(client, folder_path, files)
+            for item in files:
+                self.send_all_files(client, folder_path, item)
             return
         
         for folder in folders:
             path = os.path.join(folder_path, folder)
-            self.send_all_files(client, folder_path, files)
+            for item in files:
+                self.send_all_files(client, folder_path, item)
             self.send_all_files_in_folder(client, path)
 
     
@@ -335,21 +339,7 @@ class UserPage(wx.Panel):
         else:
             client.send("\n".encode())
 
-        folders = client.recv(1024).decode()
-        client.send("Joules".encode())
-        files = client.recv(1024).decode()
-
-        if files != "none":
-            files = files.split(',')
-        else:
-            files = []
-
-        if folders != "none":
-            folders = folders.split(',')
-        else:
-            folders = []
-
-        return folders, files
+        return self.get_all_filenames(client)
     
 
     def on_dclick_folder(self, event):
@@ -359,7 +349,7 @@ class UserPage(wx.Panel):
         self.folders, self.files = self.get_user_filenames_from_server()
         
         button = wx.Button(self.main_panel, label=folder, size=(60, 40))
-        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.reset(event), button)
+        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
         self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         self.path_buttons.append(button)
 

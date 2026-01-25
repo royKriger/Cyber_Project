@@ -28,7 +28,7 @@ class Server():
 
         all_sock = [self.server]
         while self.server:
-            rList, wList, xList = select.select(all_sock, all_sock, [])
+            rList, _, _ = select.select(all_sock, all_sock, [])
             for sock in rList:
                 if sock == self.server:
                     client, client_addr = self.server.accept()
@@ -75,6 +75,7 @@ class Server():
                     except TimeoutError:
                         all_sock.remove(sock)
                         sock.close()
+
 
     def accept_client(self, client):
         conn = sqlite3.connect(self.database)
@@ -193,9 +194,14 @@ class Server():
                 label=None
             )
         )
-        file_name = fr"{email}\{decrypted_bytes.decode()}"
+        file_name = decrypted_bytes.decode()
+        full_path = os.path.join(self.path, email)
 
-        self.get_all_files(client, [file_name], self.path)
+        if self.if_filename_exists_dir(file_name, full_path):
+            client.send('exists!'.encode())
+            return
+        
+        self.get_file(client, file_name, full_path)
 
         conn.commit()
         conn.close()
@@ -229,13 +235,15 @@ class Server():
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
         if not folders:
-            self.get_all_files(client, files, full_path)
+            for item in files:
+                self.get_file(client, item, full_path)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
-            self.get_all_files(client, files, full_path)
+            for item in files:
+                self.get_file(client, item, full_path)
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -257,36 +265,31 @@ class Server():
         return folders, files
 
 
-    def get_all_files(self, client, files, full_path):
-        for item in files:
-            client.send("Joules".encode())
-            data = client.recv(1024).decode()
-            try:
-                type, length = data.split('|')[0], int(data.split('|')[-1])
-            except TypeError:
-                raise(TimeoutError)
-            client.send("Joules1".encode())
+    def get_file(self, client, file, full_path):
+        client.send("Joules".encode())
+        data = client.recv(1024).decode()
+        try:
+            type, length = data.split('|')[0], int(data.split('|')[-1])
+        except TypeError:
+            raise(TimeoutError)
+        client.send("Joules1".encode())
 
-            print(item, length)
+        print(file, length)
 
-            path = os.path.join(full_path, item)
-            
-            file_content = client.recv(length)
-            while len(file_content) < length:
-                file_content += client.recv(length)
+        path = os.path.join(full_path, file)
+        
+        file_content = client.recv(length)
+        while len(file_content) < length:
+            file_content += client.recv(length)
 
-            if type == 'txt':
-                file_content = file_content.decode()
-                with open(path, 'w') as file:
-                    file.write(file_content)
+        if type == 'txt':
+            file_content = file_content.decode()
+            with open(path, 'w') as file:
+                file.write(file_content)
 
-            elif type == 'zip':
-                with open(path, 'wb') as file:
-                    file.write(file_content)
-
-            else:
-                with open(path, 'wb') as file:
-                    file.write(file_content)
+        else:
+            with open(path, 'wb') as file:
+                file.write(file_content)
 
         
     def send_email(self, client):
@@ -298,37 +301,14 @@ class Server():
         email = self.get_email(client).split('@')[0]
 
         client.send("Joules".encode())
-        folder_names = []
-        file_names = []
         folder = client.recv(1024).decode()
         path = fr"{self.path}\{email}"
         folder, check = folder.split("\n")
         if check:
             path = os.path.join(path, folder)
         
-        for item in os.listdir(path):
-            full_path = os.path.join(path, item)
-            if os.path.isdir(full_path):
-                folder_names.append(item)
+        self.get_and_send_folders_and_files(client, path)
 
-            else:
-                file_names.append(item)
-
-        files = ','.join(file_names)
-        folders = ','.join(folder_names)
-
-        if folders == '':
-            client.send("none".encode())
-        else:
-            client.send(folders.encode())
-
-        client.recv(1024)
-        
-        if files == '':
-            client.send("none".encode())
-        else:
-            client.send(files.encode())
-    
 
     def get_file_or_folder(self, client, request):
         email = self.get_email(client).split('@')[0]
@@ -344,41 +324,43 @@ class Server():
             return
         
         client.send("Joules1".encode())
-        self.send_all_files(client, path, [file_name])
+        self.send_all_files(client, path, file_name)
         
     
-    def send_all_files(self, client, folder_path, files):
-        for item in files:
-            client.recv(1024)
-            
-            full_path = os.path.join(folder_path, item)
-            if self.is_txt(full_path):
-                with open(full_path, 'r') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(f"txt|{length}".encode())
-                    client.recv(1024)
-                    client.send(content.encode())
+    def send_all_files(self, client, folder_path, file):
+        client.recv(1024)
+        
+        full_path = os.path.join(folder_path, file)
+        if self.is_txt(full_path):
+            with open(full_path, 'r') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"txt|{length}".encode())
+                client.recv(1024)
 
-            else:
-                with open(full_path, 'rb') as file:
-                    content = file.read()
-                    length = len(content)
-                    client.send(f"bytes|{length}".encode())
-                    client.recv(1024)
-                    
-                    client.send(content)
-            
+                client.send(content.encode())
+
+        else:
+            with open(full_path, 'rb') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                
+                client.send(content)
+        
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
         if not folders:
-            self.send_all_files(client, folder_path, files)
+            for item in files:
+                self.send_all_files(client, folder_path, item)
             return
         
         for folder in folders:
             path = os.path.join(folder_path, folder)
-            self.send_all_files(client, folder_path, files)
+            for item in files:
+                self.send_all_files(client, folder_path, item)
             self.send_all_files_in_folder(client, path)
 
     
@@ -441,6 +423,22 @@ class Server():
 
         return email
         
+
+    def if_filename_exists_dir(self, file_name, full_path):
+        items = os.listdir(full_path)
+        file_names = []
+        
+        for item in items:
+            full_path = os.path.join(full_path, item)
+            if not os.path.isdir(full_path):
+                file_names.append(item)
+
+        files = ','.join(file_names)
+        if file_name in files:
+            return True
+
+        return False
+
 
     @staticmethod
     def is_txt(path):
