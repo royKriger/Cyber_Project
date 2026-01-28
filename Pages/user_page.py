@@ -175,8 +175,9 @@ class UserPage(wx.Panel):
         client.sendall(encrypted_data)
         file_exists = client.recv(1024).decode()
         if file_exists == 'exists!':
-            self.show_dialog(client, full_path, 'File')
-            return
+            if not self.show_dialog(client, full_path, 'File'):
+                return
+            self.files.remove(file_name)
         
         self.send_file(client, full_path)
         
@@ -204,12 +205,13 @@ class UserPage(wx.Panel):
             folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
 
         client.send(folder_name.encode())
+        folder_name = folder_path.split("\\")[-1]
         folder_exists = client.recv(1024).decode()
         if folder_exists == 'exists!':
-            self.show_dialog(client, folder_path, 'Folder')
-            return
+            if not self.show_dialog(client, folder_path, 'Folder'):
+                return
+            self.folders.remove(folder_name)
 
-        folder_name = folder_path.split("\\")[-1]
 
         self.send_all_files_in_folder(client, folder_path)
         self.folders.append(folder_name)
@@ -260,7 +262,6 @@ class UserPage(wx.Panel):
             folders = folders.split(',')
 
         client.recv(1024)
-        print('waijsgd')
 
         if files == '':
             client.send("none".encode())
@@ -497,11 +498,8 @@ class UserPage(wx.Panel):
         if state == wx.ID_OK:
             client.send(f'Replace {item.lower()}'.encode())
             client.recv(1024)
-            if item == 'File':
-                self.send_file(client, full_path)
-            else:
-                self.send_all_files_in_folder(client, full_path)
-        return
+            return True
+        return False
 
 
     def delete_unwanted_files(self, sizer: wx.BoxSizer, stop: int=0) -> None:

@@ -197,13 +197,18 @@ class Server():
         file_name = decrypted_bytes.decode()
         full_path = os.path.join(self.path, email)
 
+        if '\\' in file_name:
+            path = '\\'.join(file_name.split('\\')[:-1])
+            file_name = file_name.split('\\')[-1]
+            full_path = os.path.join(full_path, path)
+
         if self.if_item_exists_dir(file_name, full_path, False):
             client.send('exists!'.encode())
             replace = client.recv(1024).decode() == "Replace file"
             if not replace:
                 return
             os.remove(os.path.join(full_path, file_name))
-        
+
         self.get_file(client, file_name, full_path)
 
         conn.commit()
@@ -290,7 +295,6 @@ class Server():
         print(file, length)
 
         path = os.path.join(full_path, file)
-        
         file_content = client.recv(length)
         while len(file_content) < length:
             file_content += client.recv(length)
@@ -443,8 +447,12 @@ class Server():
         
         for item in items:
             current_path = os.path.join(full_path, item)
-            if file_or_folder and os.path.isdir(current_path):
-                file_names.append(item)
+            if file_or_folder:
+                if os.path.isdir(current_path):
+                    file_names.append(item)
+            else:
+                if not os.path.isdir(current_path):
+                    file_names.append(item)
 
         files = ','.join(file_names)
         if file_name in files:
@@ -453,8 +461,7 @@ class Server():
         return False
 
 
-    @staticmethod
-    def is_txt(path):
+    def is_txt(self, path):
         with open(path, "rb") as file:
             chunk = file.read(4096)
 
