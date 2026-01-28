@@ -80,17 +80,7 @@ class UserPage(wx.Panel):
     def show_current_folder_contents(self, event):
         btn = event.GetEventObject()
         stop = self.path_buttons.index(btn)
-        while self.path_sizer.GetItemCount() > stop + 2:
-            item = self.path_sizer.GetItem(stop + 2)
-
-            if item.IsSizer():
-                sizer = item.GetSizer()
-                self.path_sizer.Detach(sizer)
-                sizer.Clear(delete_windows=True)
-            else:
-                window = item.GetWindow()
-                self.path_sizer.Detach(window)
-                window.Destroy()
+        self.delete_unwanted_files(self.path_sizer, stop)
 
         self.current_folder = self.current_folder[0:stop]
         self.folders, self.files = self.get_user_filenames_from_server()
@@ -99,17 +89,7 @@ class UserPage(wx.Panel):
 
 
     def print_files(self):
-        while self.main_sizer.GetItemCount() > 2:
-            item = self.main_sizer.GetItem(2)
-
-            if item.IsSizer():
-                sizer = item.GetSizer()
-                self.main_sizer.Detach(sizer)
-                sizer.Clear(delete_windows=True)
-            else:
-                window = item.GetWindow()
-                self.main_sizer.Detach(window)
-                window.Destroy()
+        self.delete_unwanted_files(self.main_sizer)
 
         folders_sizer = wx.BoxSizer(wx.VERTICAL)
         folders_sizer.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Folders:"), 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -147,6 +127,26 @@ class UserPage(wx.Panel):
         self.Layout()
 
 
+    def send_file(self, client, full_path: str):
+        if self.is_txt(full_path):
+            with open(full_path, 'r') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"txt|{length}".encode())
+                client.recv(1024)
+
+                client.send(content.encode())
+
+        else:
+            with open(full_path, 'rb') as f:
+                content = f.read()
+                length = len(content)
+                client.send(f"bytes|{length}".encode())
+                client.recv(1024)
+                
+                client.send(content)
+
+
     def open_file_dialoge(self, event):
         file_dialog = wx.FileDialog(self, "Select a file")
         if file_dialog.ShowModal() != wx.ID_OK:
@@ -175,34 +175,10 @@ class UserPage(wx.Panel):
         client.sendall(encrypted_data)
         file_exists = client.recv(1024).decode()
         if file_exists == 'exists!':
-            frame = wx.Frame(None, title='File already exists!', size=(150, 100),
-                             name="File already exists!", id=wx.ID_ANY, pos=wx.DefaultPosition, 
-                             style=wx.DEFAULT_FRAME_STYLE)
-            frame.Show()
-            sizer = wx.BoxSizer(wx.VERTICAL)
-            label = wx.StaticText(frame, wx.ID_ANY, "File already exists!")
-            sizer.Add(label, proportion=1, flag=wx.EXPAND | wx.ALL)
-
-            frame.SetSizer(sizer)
-            frame.Layout()
+            self.show_dialog(client, full_path, 'File')
             return
         
-        if self.is_txt(full_path):
-            with open(full_path, 'r') as file:
-                content = file.read()
-                length = len(content)
-                client.send(f"txt|{length}".encode())
-                client.recv(1024)
-                client.send(content.encode())
-
-        else:
-            with open(full_path, 'rb') as file:
-                content = file.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                
-                client.send(content)
+        self.send_file(client, full_path)
         
         self.files.append(file_name)
         self.print_files()
@@ -228,7 +204,11 @@ class UserPage(wx.Panel):
             folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
 
         client.send(folder_name.encode())
-        client.recv(1024)
+        folder_exists = client.recv(1024).decode()
+        if folder_exists == 'exists!':
+            self.show_dialog(client, folder_path, 'Folder')
+            return
+
         folder_name = folder_path.split("\\")[-1]
 
         self.send_all_files_in_folder(client, folder_path)
@@ -240,23 +220,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
         
         full_path = os.path.join(folder_path, file)
-        if self.is_txt(full_path):
-            with open(full_path, 'r') as f:
-                content = f.read()
-                length = len(content)
-                client.send(f"txt|{length}".encode())
-                client.recv(1024)
-
-                client.send(content.encode())
-
-        else:
-            with open(full_path, 'rb') as f:
-                content = f.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                
-                client.send(content)
+        self.send_file(client, full_path)
             
     
     def send_all_files_in_folder(self, client, folder_path):
@@ -296,6 +260,7 @@ class UserPage(wx.Panel):
             folders = folders.split(',')
 
         client.recv(1024)
+        print('waijsgd')
 
         if files == '':
             client.send("none".encode())
@@ -303,7 +268,6 @@ class UserPage(wx.Panel):
         else:
             client.send(files.encode())
             files = files.split(',')
-
         return folders, files
 
 
@@ -319,6 +283,7 @@ class UserPage(wx.Panel):
             email = client.recv(1024).decode()
 
         self.show_popup(event, ["Sign out"], [email])
+
 
     def sign_out(self, popup_win):
         popup_win.Hide()
@@ -506,8 +471,54 @@ class UserPage(wx.Panel):
         popup.Popup()
     
 
-    @staticmethod
-    def is_txt(path):
+    def show_dialog(self, client, full_path, item : str):
+        dialog = wx.Dialog(self, title=f'{item} already exists!', size=(300, 220),
+                            name=f'{item} already exists!', style=wx.DEFAULT_DIALOG_STYLE & ~wx.CLOSE_BOX)
+        dialog.Centre()
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(dialog, label=f'{item} already exists!')
+        sizer.Add(label, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
+
+        replace_file = wx.Button(dialog, label=f"Replace {item.lower()} in destination", size=(200, 60), name="replace")
+        close = wx.Button(dialog, label="Cancel", size=(200, 50), name="cancel")
+
+        sizer.Add(replace_file, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
+        sizer.Add(close, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
+
+        dialog.SetSizer(sizer)
+
+        dialog.Bind(wx.EVT_BUTTON, lambda e: dialog.EndModal(wx.ID_OK), replace_file)
+        dialog.Bind(wx.EVT_BUTTON, lambda e: dialog.EndModal(wx.ID_CANCEL), close)
+
+        state = dialog.ShowModal()
+        dialog.Destroy()
+
+        if state == wx.ID_OK:
+            client.send(f'Replace {item.lower()}'.encode())
+            client.recv(1024)
+            if item == 'File':
+                self.send_file(client, full_path)
+            else:
+                self.send_all_files_in_folder(client, full_path)
+        return
+
+
+    def delete_unwanted_files(self, sizer: wx.BoxSizer, stop: int=0) -> None:
+        while sizer.GetItemCount() > stop + 2:
+            item = sizer.GetItem(stop + 2)
+
+            if item.IsSizer():
+                temp_sizer = item.GetSizer()
+                sizer.Detach(temp_sizer)
+                temp_sizer.Clear(delete_windows=True)
+            else:
+                window = item.GetWindow()
+                sizer.Detach(window)
+                window.Destroy()
+
+
+    def is_txt(self, path):
         with open(path, "rb") as file:
             chunk = file.read(4096)
 

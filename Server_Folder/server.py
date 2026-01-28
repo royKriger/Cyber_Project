@@ -197,9 +197,12 @@ class Server():
         file_name = decrypted_bytes.decode()
         full_path = os.path.join(self.path, email)
 
-        if self.if_filename_exists_dir(file_name, full_path):
+        if self.if_item_exists_dir(file_name, full_path, False):
             client.send('exists!'.encode())
-            return
+            replace = client.recv(1024).decode() == "Replace file"
+            if not replace:
+                return
+            os.remove(os.path.join(full_path, file_name))
         
         self.get_file(client, file_name, full_path)
 
@@ -219,13 +222,23 @@ class Server():
         email = conn_cur.fetchone()[0].split('@')[0]
 
         folder_name = client.recv(1024).decode()
+        full_path = os.path.join(self.path, email)
 
-        path = fr"{email}\{folder_name}"
-        client.send("Joules".encode())
+        if '\\' in folder_name:
+            path = '\\'.join(folder_name.split('\\')[:-1])
+            folder_name = folder_name.split('\\')[-1]
+            full_path = os.path.join(full_path, path)
 
-        full_path = os.path.join(self.path, path)
+        if self.if_item_exists_dir(folder_name, full_path, True):
+            client.send('exists!'.encode())
+            replace = client.recv(1024).decode() == "Replace folder"
+            if not replace:
+                return
+            shutil.rmtree(os.path.join(full_path, folder_name))
+        client.send('doesnt exist'.encode())
+
+        full_path = os.path.join(full_path, folder_name)
         os.mkdir(full_path)
-        
         self.recieve_all_files_and_folders(client, full_path)
 
         conn.commit()
@@ -424,13 +437,13 @@ class Server():
         return email
         
 
-    def if_filename_exists_dir(self, file_name, full_path):
+    def if_item_exists_dir(self, file_name, full_path, file_or_folder):
         items = os.listdir(full_path)
         file_names = []
         
         for item in items:
-            full_path = os.path.join(full_path, item)
-            if not os.path.isdir(full_path):
+            current_path = os.path.join(full_path, item)
+            if file_or_folder and os.path.isdir(current_path):
                 file_names.append(item)
 
         files = ','.join(file_names)
