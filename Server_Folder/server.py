@@ -17,6 +17,7 @@ class Server():
         self.server.listen(5)
         self.path = r"Server_Folder\ServerFiles"
         self.database = r"Server_Folder\drive_db.sqlite"
+        self.text_files, self.bytes_files = [], []
 
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -287,7 +288,7 @@ class Server():
         client.send("Joules".encode())
         data = client.recv(1024).decode()
         try:
-            type, length = data.split('|')[0], int(data.split('|')[-1])
+            extension, length = data.split('|')[0], int(data.split('|')[-1])
         except TypeError:
             raise(TimeoutError)
         client.send("Joules1".encode())
@@ -299,14 +300,16 @@ class Server():
         while len(file_content) < length:
             file_content += client.recv(length)
 
-        if type == 'txt':
+        if extension == 'txt':
             file_content = file_content.decode()
             with open(path, 'w') as file:
                 file.write(file_content)
+            self.text_files.append(file)
 
         else:
             with open(path, 'wb') as file:
                 file.write(file_content)
+            self.bytes_files.append(file)
 
         
     def send_email(self, client):

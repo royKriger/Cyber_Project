@@ -106,14 +106,13 @@ class Utilities():
         return new_ctrl
 
 
-    @staticmethod
     def get_item_index(sizer, window):
         for i in range(sizer.GetItemCount()):
             item = sizer.GetItem(i)
             if item and item.GetWindow() is window:
                 return i
         return -1
-    
+
 
     def encrypt(message: bytes, key) -> bytes:
         encrypted_message = key.encrypt(
@@ -126,12 +125,9 @@ class Utilities():
         )
 
         return encrypted_message
-    
+
 
     def go_home(cur, parent, inputs):
         for input in inputs:
-            try:
-                input.SetLabel("")
-            except Exception as e:
-                print(e)
+            input.SetLabel("")
         parent.show_frame(cur=cur)
