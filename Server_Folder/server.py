@@ -205,9 +205,11 @@ class Server():
 
         if self.if_item_exists_dir(file_name, full_path, False):
             client.send('exists!'.encode())
+            client.settimeout(None)
             replace = client.recv(1024).decode() == "Replace file"
             if not replace:
                 return
+            client.settimeout(2.0)
             os.remove(os.path.join(full_path, file_name))
 
         self.get_file(client, file_name, full_path)
@@ -237,9 +239,11 @@ class Server():
 
         if self.if_item_exists_dir(folder_name, full_path, True):
             client.send('exists!'.encode())
+            client.settimeout(None)
             replace = client.recv(1024).decode() == "Replace folder"
             if not replace:
                 return
+            client.settimeout(2.0)
             shutil.rmtree(os.path.join(full_path, folder_name))
         client.send('doesnt exist'.encode())
 
@@ -304,12 +308,13 @@ class Server():
             file_content = file_content.decode()
             with open(path, 'w') as file:
                 file.write(file_content)
-            self.text_files.append(file)
+            self.text_files.append(path)
 
         else:
-            with open(path, 'wb') as file:
-                file.write(file_content)
-            self.bytes_files.append(file)
+            with open(path, 'wb') as f:
+                f.write(file_content)
+            if self.is_image(path):
+                self.bytes_files.append(path)
 
         
     def send_email(self, client):
@@ -319,15 +324,23 @@ class Server():
 
     def send_filenames(self, client):
         email = self.get_email(client).split('@')[0]
+        self.text_files, self.bytes_files = [], []
 
         client.send("Joules".encode())
         folder = client.recv(1024).decode()
-        path = fr"{self.path}\{email}"
+        path = os.path.join(self.path, email)
         folder, check = folder.split("\n")
         if check:
             path = os.path.join(path, folder)
         
-        self.get_and_send_folders_and_files(client, path)
+        _, files = self.get_and_send_folders_and_files(client, path)
+        for file in files:
+            full_path = os.path.join(path, file)
+            if self.is_txt(full_path):
+                self.text_files.append(full_path)
+            else:
+                if self.is_image(full_path):
+                    self.bytes_files.append(full_path)
 
 
     def get_file_or_folder(self, client, request):
@@ -423,11 +436,15 @@ class Server():
 
         file_name = client.recv(1024).decode()
 
-        path = fr"{self.path}\{email}\{file_name}"
+        path = os.path.join(self.path, email, file_name)
         if os.path.isdir(path):
             shutil.rmtree(path)
         else:
             os.remove(path)
+            if self.is_txt(path):
+                self.text_files.remove(path)
+            else:
+                self.bytes_files.remove(path)
 
     
     def get_email(self, client):
@@ -477,5 +494,10 @@ class Server():
         except UnicodeDecodeError:
             return False
     
+
+    def is_image(self, path):
+        extension = path.split('.')[-1]
+        return extension.lower() in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'tiff', 'jfif']
+
 
 server = Server()

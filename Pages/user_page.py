@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import serialization
 class UserPage(wx.Panel):
     def __init__(self, parent : wx.Window, size, username : str):
         super(UserPage, self).__init__(parent, size=size)
+        self.row_size = 4
         self.parent = parent
         self.username = username
         self.current_folder = []
@@ -90,7 +91,7 @@ class UserPage(wx.Panel):
 
     def print_files(self):
         self.delete_unwanted_files(self.main_sizer)
-
+        
         container_sizer = ["Folders:", "Files:", "Zips:"]
         sizers = []
 
@@ -102,7 +103,7 @@ class UserPage(wx.Panel):
             sizers.append(sizer)
             
         for i in range(len(self.folders)):
-            if sizers[0].ItemCount % 4 == 0 and sizers[0].ItemCount != 0:
+            if sizers[0].ItemCount % self.row_size == 0 and sizers[0].ItemCount != 0:
                 container_sizer[0].Add(sizers[0], 0, wx.ALIGN_CENTER | wx.ALL, 5)
                 sizers[0] = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -112,28 +113,33 @@ class UserPage(wx.Panel):
             sizers[0].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         for i in range(len(self.files)):
-            if sizers[1].ItemCount % 4 == 0 and sizers[1].ItemCount != 0:
-                container_sizer[1].Add(sizers[1], 0, wx.ALIGN_CENTER | wx.ALL, 5)
-                sizers[1] = wx.BoxSizer(wx.HORIZONTAL)
-
-            if sizers[2].ItemCount % 4 == 0 and sizers[2].ItemCount != 0:
-                container_sizer[2].Add(sizers[2], 0, wx.ALIGN_CENTER | wx.ALL, 5)
-                sizers[2] = wx.BoxSizer(wx.HORIZONTAL)
-
             button = wx.Button(self.main_panel, wx.ID_ANY, label=self.files[i], name="file")
             self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Delete"]), button)
+            
             if self.files[i].endswith('.zip'):
                 sizers[2].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                if sizers[2].ItemCount % self.row_size == 0 and sizers[2].ItemCount != 0:
+                    container_sizer[2].Add(sizers[2], 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                    sizers[2] = wx.BoxSizer(wx.HORIZONTAL)
             else:
                 sizers[1].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                if sizers[1].ItemCount % self.row_size == 0 and sizers[1].ItemCount != 0:
+                    container_sizer[1].Add(sizers[1], 0, wx.ALIGN_CENTER | wx.ALL, 5)
+                    sizers[1] = wx.BoxSizer(wx.HORIZONTAL)
 
         for i in range(len(container_sizer)):
             if container_sizer[i].GetItemCount() > 0:
                 container_sizer[i].Add(sizers[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
 
         for i in range(len(sizers)):
-            if container_sizer[i].GetItemCount() > 1:
+            if container_sizer[i].GetItemCount() > 1 and sizers[i].GetItemCount() > 0:
                 self.main_sizer.Add(container_sizer[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
+            else:
+                for item in container_sizer[i].GetChildren():
+                    widget = item.GetWindow()
+                    if widget:
+                        widget.Destroy()
+                    container_sizer[i].Clear(delete_windows=True)
 
         self.Layout()
 
