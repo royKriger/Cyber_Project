@@ -153,15 +153,15 @@ class UserPage(wx.Panel):
                 client.recv(1024)
 
                 client.send(content.encode())
+                return
 
-        else:
-            with open(full_path, 'rb') as f:
-                content = f.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                
-                client.send(content)
+        with open(full_path, 'rb') as f:
+            content = f.read()
+            length = len(content)
+            client.send(f"bytes|{length}".encode())
+            client.recv(1024)
+            
+            client.send(content)
 
 
     def open_file_dialoge(self, event):
@@ -376,13 +376,15 @@ class UserPage(wx.Panel):
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
         if not folders:
-            self.get_all_files(client, files, full_path)
+            for item in files:
+                self.get_all_files(client, full_path, item)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
-            self.get_all_files(client, files, full_path)
+            for item in files:
+                self.get_all_files(client, full_path, item)
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -404,10 +406,9 @@ class UserPage(wx.Panel):
         return folders, files
 
 
-    def get_all_files(self, client, files, full_path):
-        for item in files:
-            path = os.path.join(full_path, item)
-            self.recieve_file(client, path)
+    def get_all_files(self, client, full_path, item):
+        path = os.path.join(full_path, item)
+        self.recieve_file(client, path)
 
 
     def remove_folder_or_files(self, event, btn):
@@ -447,7 +448,6 @@ class UserPage(wx.Panel):
             file_content = file_content.decode()
             with open(full_path, 'w') as file:
                 file.write(file_content)
-
             return
             
         with open(full_path, 'wb') as file:

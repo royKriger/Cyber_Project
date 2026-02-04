@@ -1,7 +1,7 @@
 import wx
 import re
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
 
 class Utilities():
@@ -9,80 +9,80 @@ class Utilities():
         return "localhost"
     
 
-    def check_user_input(self, label, username):
+    def check_user_input(parent, label : wx.StaticText, username):
         label.SetForegroundColour(wx.RED)
         if len(username) == 0:
             label.Label = "Enter a username! "
-            self.Layout()
+            parent.Layout()
             return False
         label.Label = ""
         label.SetForegroundColour(wx.BLACK)
-        self.Layout()
+        parent.Layout()
         return True
 
 
-    def check_email_input(self, label, email):
+    def check_email_input(parent, label : wx.StaticText, email):
         label.SetForegroundColour(wx.RED)
         if len(email) == 0:
             label.Label = "Enter an email! "
-            self.Layout()
+            parent.Layout()
             return False
         elif "@gmail" not in email:
             label.Label = "Must inclue @gmail! "
-            self.Layout()
+            parent.Layout()
             return False
         elif re.search("[! @ # $ % ^ & *]", email[0:email.index('@')]) is not None:
             label.Label = "Email cannot contain special letters! "
-            self.Layout()
+            parent.Layout()
             return False
         elif email.count('@') > 1:
             label.Label = "Email cannot contain more than one @! "
-            self.Layout()
+            parent.Layout()
             return False
         elif ".com" not in email:
             label.Label = "Must inclue .com! "
-            self.Layout()
+            parent.Layout()
             return False
         label.Label = ""
         label.SetForegroundColour(wx.BLACK)
-        self.Layout()
+        parent.Layout()
         return True
 
 
 # סיסמה חזקה, כולל תווים, אות קטנה, אות גדולה, תווים מיוחדים
-    def check_password_input(self, label, password):
+    def check_password_input(parent, label : wx.StaticText, password):
         label.SetForegroundColour(wx.RED)
         if len(password) == 0:
             label.Label = "Enter a password! "
-            self.Layout()
+            parent.Layout()
             return False
         if len(password) < 4:
             label.Label = "Password length too short! "
-            self.Layout()
+            parent.Layout()
             return False
         elif re.search("[A-Z]", password) is None:
             label.Label = "Use an uppercase letter"
-            self.Layout()
+            parent.Layout()
             return False
         elif re.search("[a-z]", password) is None:
             label.Label = "Use a lowercase letter"
-            self.Layout()
+            parent.Layout()
             return False
         elif re.search("[0-9]", password) is None:
             label.Label = "Use a number"
-            self.Layout()
+            parent.Layout()
             return False
         elif re.search("[! @ # $ % ^ & *]", password) is None:
             label.Label = "Use a special letter"
-            self.Layout()
+            parent.Layout()
             return False
         label.Label = ""
         label.SetForegroundColour(wx.BLACK)
-        self.Layout()
+        parent.Layout()
         return True
 
 
-    def on_check(parent, password_input, checkbox):
+    def on_check(parent, password_input : wx.TextCtrl, checkbox : wx.CheckBox):
         password = password_input.GetLineText(lineNo=0)
         input_sizer = password_input.GetContainingSizer()
         index = Utilities.get_item_index(input_sizer, password_input)
@@ -106,7 +106,7 @@ class Utilities():
         return new_ctrl
 
 
-    def get_item_index(sizer, window):
+    def get_item_index(sizer : wx.BoxSizer, window):
         for i in range(sizer.GetItemCount()):
             item = sizer.GetItem(i)
             if item and item.GetWindow() is window:

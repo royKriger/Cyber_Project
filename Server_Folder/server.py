@@ -1,10 +1,10 @@
 import os
 import socket
 import shutil
-import sqlite3
 import select
 import base64
 import bcrypt
+import sqlite3
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -12,6 +12,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
 class Server():
     def __init__(self):
+        self.timeout = 2.0
         self.server = socket.socket()
         self.server.bind(("0.0.0.0", 8200))
         self.server.listen(5)
@@ -34,7 +35,7 @@ class Server():
                 if sock == self.server:
                     client, client_addr = self.server.accept()
                     all_sock.append(client)
-                    client.settimeout(2.0)
+                    client.settimeout(self.timeout)
                 else:
                     try:
                         request = sock.recv(1024).decode()
@@ -159,7 +160,7 @@ class Server():
         conn.close()
 
 
-    def handle_file(self, client):
+    def handle_file(self, client : socket.socket):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
@@ -209,7 +210,7 @@ class Server():
             replace = client.recv(1024).decode() == "Replace file"
             if not replace:
                 return
-            client.settimeout(2.0)
+            client.settimeout(self.timeout)
             os.remove(os.path.join(full_path, file_name))
 
         self.get_file(client, file_name, full_path)
@@ -218,7 +219,7 @@ class Server():
         conn.close()
 
 
-    def handle_folder(self, client):
+    def handle_folder(self, client : socket.socket):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
@@ -243,7 +244,7 @@ class Server():
             replace = client.recv(1024).decode() == "Replace folder"
             if not replace:
                 return
-            client.settimeout(2.0)
+            client.settimeout(self.timeout)
             shutil.rmtree(os.path.join(full_path, folder_name))
         client.send('doesnt exist'.encode())
 
