@@ -107,12 +107,18 @@ class Server():
 
         data = "200"
         if action == "login":
-            email, password = decrypted_data[0], decrypted_data[1]
+            email, password = decrypted_data[0], decrypted_data[1].encode()
+            if len(decrypted_data) > 2:
+                conn_cur.execute("SELECT User FROM Users WHERE Email=?", (email,))
+                username = conn_cur.fetchone()[0]
+                login_id = bcrypt.hashpw(username.encode(), bcrypt.gensalt()).decode()
+                print(login_id)
+                conn_cur.execute("UPDATE Users SET login_ID=? WHERE Email=?", (login_id, email))
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
             if (email, ) in emails:
-                conn_cur.execute(f"SELECT Password FROM Users WHERE Email='{email}'")
-                db_pass = conn_cur.fetchone()[0]
+                conn_cur.execute(f"SELECT Password FROM Users WHERE Email=?", (email,))
+                db_pass = conn_cur.fetchone()[0].encode()
                 if not bcrypt.checkpw(password, db_pass):
                     data = "500|Password or email not correct! "
             else:

@@ -30,12 +30,16 @@ class LoginPage(wx.Panel):
         
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
-        self.show_password = wx.CheckBox(self, label="Show Password")
-        self.Bind(wx.EVT_CHECKBOX, lambda event: self.check_helper(event), self.show_password)
-        input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
         self.error2 = wx.StaticText(self)
         self.inputs.append(self.error2)
         input_sizer.Add(self.error2, 0, wx.ALIGN_CENTER)
+
+        self.show_password = wx.CheckBox(self, label="Show Password")
+        self.Bind(wx.EVT_CHECKBOX, lambda event: self.check_helper(event), self.show_password)
+        input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
+
+        self.remember_me = wx.CheckBox(self, label="Remember Me")
+        input_sizer.Add(self.remember_me, 0, wx.UP | wx.RIGHT, 5)
         
         self.error = wx.StaticText(self)
         self.inputs.append(self.error)
@@ -62,9 +66,6 @@ class LoginPage(wx.Panel):
         flag = self.check_if_all_input_good(email, password)
 
         if flag:
-            email = self.email.GetLineText(lineNo=0)
-            password = self.password.GetLineText(lineNo=0)
-
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send("Log in".encode())
@@ -75,6 +76,8 @@ class LoginPage(wx.Panel):
             public_key = serialization.load_pem_public_key(public_key_pem)
 
             data = f"{email},{password}"
+            if self.remember_me.IsChecked():
+                data += ',remember'
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
 
             client.sendall(encrypted_data)

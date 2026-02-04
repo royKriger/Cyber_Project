@@ -40,12 +40,19 @@ class RegisterPage(wx.Panel):
         
         input_sizer.Add(wx.StaticText(self, label="Password"), 0, wx.Left | wx.Right, 20)
         input_sizer.Add(self.password, 0, wx.Left | wx.Right, 20)
-        self.show_password = wx.CheckBox(self, label="Show Password")
-        self.Bind(wx.EVT_CHECKBOX, lambda event: self.check_helper(event), self.show_password)
-        input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
         self.error3 = wx.StaticText(self)
         self.inputs.append(self.error3)
         input_sizer.Add(self.error3, 0, wx.ALIGN_CENTER)
+
+        self.check_boxes = []
+        self.show_password = wx.CheckBox(self, label="Show Password")
+        self.Bind(wx.EVT_CHECKBOX, lambda event: self.check_helper(event), self.show_password)
+        input_sizer.Add(self.show_password, 0, wx.UP | wx.RIGHT, 5)
+        self.check_boxes.append(self.show_password)
+
+        self.remember_me = wx.CheckBox(self, label="Remember Me")
+        input_sizer.Add(self.remember_me, 0, wx.UP | wx.RIGHT, 5)
+        self.check_boxes.append(self.remember_me)
         
         self.error = wx.StaticText(self)
         input_sizer.Add(self.error, 0, wx.ALIGN_CENTER)
@@ -89,6 +96,8 @@ class RegisterPage(wx.Panel):
             secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
             data = f"{user},{email},{base64.b64encode(secure_pass).decode()}"
+            if self.remember_me.IsChecked():
+                data += ',remember'
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
 
             client.sendall(encrypted_data)
