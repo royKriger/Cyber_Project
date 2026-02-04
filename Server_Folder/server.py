@@ -113,13 +113,13 @@ class Server():
             if (email, ) in emails:
                 conn_cur.execute(f"SELECT Password FROM Users WHERE Email='{email}'")
                 db_pass = conn_cur.fetchone()[0]
-                if not bcrypt.checkpw(password.encode(), db_pass):
+                if not bcrypt.checkpw(password, db_pass):
                     data = "500|Password or email not correct! "
             else:
                 data = "500|Email does not exist! "
 
         if action == "register":
-            user, email, password = decrypted_data[0], decrypted_data[1], base64.b64decode(decrypted_data[2])
+            user, email, password = decrypted_data[0], decrypted_data[1], base64.b64decode(decrypted_data[2]).decode()
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
             conn_cur.execute("SELECT User FROM Users")
