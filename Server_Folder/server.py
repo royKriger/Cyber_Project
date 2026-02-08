@@ -39,6 +39,10 @@ class Server():
                 else:
                     try:
                         request = sock.recv(1024).decode()
+                        if request == "Remember me":
+                            sock.send("Joules".encode())
+                            self.returned_client(sock)
+                            all_sock.remove(sock)
                         if request == "Sign up" or request == "Log in":
                             sock.send("Joules".encode())
                             self.accept_client(sock)
@@ -114,15 +118,16 @@ class Server():
                 login_id = bcrypt.hashpw(username.encode(), bcrypt.gensalt()).decode()
                 print(login_id)
                 conn_cur.execute("UPDATE Users SET login_ID=? WHERE Email=?", (login_id, email))
+                data += '|' + login_id
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
             if (email, ) in emails:
                 conn_cur.execute(f"SELECT Password FROM Users WHERE Email=?", (email,))
                 db_pass = conn_cur.fetchone()[0].encode()
                 if not bcrypt.checkpw(password, db_pass):
-                    data = "500|Password or email not correct! "
+                    data = "501|Password or email not correct! "
             else:
-                data = "500|Email does not exist! "
+                data = "502|Email does not exist! "
 
         if action == "register":
             user, email, password = decrypted_data[0], decrypted_data[1], base64.b64decode(decrypted_data[2]).decode()
@@ -133,12 +138,19 @@ class Server():
             if (user,) in users:
                 data = "500|Username already exists! "
             elif user == "Admin":
-                data = "500|Can't have this username! "
+                data = "503|Can't have this username! "
             elif (email,) in emails:
                 data = "500|Email already exists! "
             else:
-                conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
-        (user, email, password))
+                if len(decrypted_data) > 3:
+                    login_id = bcrypt.hashpw(user.encode(), bcrypt.gensalt()).decode()
+                    conn_cur.execute("INSERT INTO Users (User, Email, Password, login_ID) VALUES (?, ?, ?, ?)",
+                (user, email, password, login_id))
+                    print(login_id)
+                    data += '|' + login_id
+                else:
+                    conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
+                (user, email, password))
                 os.mkdir(f"{self.path}\\{email.split('@')[0]}")
 
         client.send(data.encode())
@@ -161,6 +173,20 @@ class Server():
             conn_cur.execute("SELECT User FROM Users WHERE Email=?", (email,))
             username = conn_cur.fetchone()[0]
             client.send(username.encode())
+
+        conn.commit()
+        conn.close()
+
+
+    def returned_client(self, client):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+
+        token = client.recv(1024).decode()
+
+        conn_cur.execute("SELECT User FROM Users WHERE login_ID=?", (token,))
+        username = conn_cur.fetchone()[0]
+        client.send(username.encode())
 
         conn.commit()
         conn.close()

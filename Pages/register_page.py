@@ -80,10 +80,6 @@ class RegisterPage(wx.Panel):
         flag = self.check_if_all_input_good(username, email, password)
 
         if flag:
-            user = self.username.GetLineText(lineNo=0)
-            email = self.email.GetLineText(lineNo=0)
-            password = self.password.GetLineText(lineNo=0)
-
             client = socket()
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send("Sign up".encode())
@@ -95,7 +91,7 @@ class RegisterPage(wx.Panel):
 
             secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-            data = f"{user},{email},{base64.b64encode(secure_pass).decode()}"
+            data = f"{username},{email},{base64.b64encode(secure_pass).decode()}"
             if self.remember_me.IsChecked():
                 data += ',remember'
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
@@ -103,16 +99,19 @@ class RegisterPage(wx.Panel):
             client.sendall(encrypted_data)
 
             data = client.recv(1024).decode()
-            if data == "200":
+            if data.startswith('200'):
                 print("Data input in database completed succesfully! ")
                 self.username.SetLabel("")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
+                if len(data.split('|')) > 1:
+                    with open('authToken.txt', 'w') as file:
+                        file.write(data.split('|')[-1])
                 data = f"logged in,{email}"
                 encrypted_data = Utilities.encrypt(data.encode(), public_key)
                 client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
-                self.parent.show_user_frame(self, username)
+                self.parent.show_user_frame(username ,self)
 
             else:
                 print("Operation was not succesful!")

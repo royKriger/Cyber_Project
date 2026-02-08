@@ -311,6 +311,8 @@ class UserPage(wx.Panel):
 
     def sign_out(self, popup_win):
         popup_win.Hide()
+        if os.path.isfile('authToken.txt'):
+            os.remove('authToken.txt')
         self.current_folder = []
         self.parent.show_frame(cur=self)
 

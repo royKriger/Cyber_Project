@@ -1,8 +1,11 @@
+import os
 import wx
+import socket
+from user_page import UserPage
+from utilities import Utilities
 from first_page import FirstPage
 from login_page import LoginPage
 from register_page import RegisterPage
-from user_page import UserPage
 
 
 class MyFrame(wx.Frame):
@@ -23,8 +26,20 @@ class MyFrame(wx.Frame):
             cur.SetBackgroundColour(wx.Colour(245, 245, 246))
             cur.Hide()
             self.pages[F] = cur
-
-        self.show_frame()
+        
+        if os.path.isfile('authToken.txt'):
+            client = socket.socket()
+            client.connect((Utilities.get_pc_ip(), 8200))
+            client.send("Remember me".encode())
+            client.recv(1024)
+            with open('authToken.txt', 'r') as file:
+                token = file.read()
+            client.send(token.encode())
+            username = client.recv(1024).decode()
+            self.show_user_frame(username)
+            client.close()
+        else:
+            self.show_frame()
 
         self.SetSizer(self.sizer)
         
@@ -40,12 +55,13 @@ class MyFrame(wx.Frame):
         self.Refresh()
 
 
-    def show_user_frame(self, cur, username):
+    def show_user_frame(self, username, cur=None):
         frame = UserPage(self, self.size, username)
         self.sizer.Add(frame, proportion=1, flag=wx.EXPAND | wx.ALL)
         frame.SetBackgroundColour(wx.Colour(245, 245, 246))
         self.pages[frame] = frame
-        cur.Hide()
+        if cur != None:
+            cur.Hide()
         frame.Show(True)
         self.Layout()
         self.Refresh()

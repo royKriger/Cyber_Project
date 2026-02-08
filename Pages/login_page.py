@@ -83,15 +83,18 @@ class LoginPage(wx.Panel):
             client.sendall(encrypted_data)
 
             data = client.recv(1024).decode()
-            if data == ("200"):
+            if data.startswith('200'):
                 print("Login completed succesfully! ")
                 self.email.SetLabel("")
                 self.password.SetLabel("")
+                if len(data.split('|')) > 1:
+                    with open('authToken.txt', 'w') as file:
+                        file.write(data.split('|')[-1])
                 data = f"logged in,{email}"
                 encrypted_data = Utilities.encrypt(data.encode(), public_key)
                 client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
-                self.parent.show_user_frame(self, username)
+                self.parent.show_user_frame(username, self)
 
             else:
                 print("Operation was not succesful!")
