@@ -1,7 +1,8 @@
 import wx
-from socket import socket
+import os
+import json
 import bcrypt
-import base64
+from socket import socket
 from utilities import Utilities
 from cryptography.hazmat.primitives import serialization
 
@@ -91,7 +92,7 @@ class RegisterPage(wx.Panel):
 
             secure_pass = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
-            data = f"{username},{email},{base64.b64encode(secure_pass).decode()}"
+            data = f"{username},{email},{secure_pass.decode()}"
             if self.remember_me.IsChecked():
                 data += ',remember'
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
@@ -105,12 +106,21 @@ class RegisterPage(wx.Panel):
                 self.email.SetLabel("")
                 self.password.SetLabel("")
                 if len(data.split('|')) > 1:
-                    with open('authToken.txt', 'w') as file:
-                        file.write(data.split('|')[-1])
+                    exists = os.path.isfile('authToken.json')
+                    if exists:
+                        with open('authToken.json', 'r') as file:
+                            json_dump = json.load(file)
+                            
+                    with open('authToken.json', 'w') as file:
+                        json_dump[email] = data.split("|")[-1]
+                        json.dump(json_dump, file)
                 data = f"logged in,{email}"
                 encrypted_data = Utilities.encrypt(data.encode(), public_key)
                 client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
+                for input in self.inputs:
+                    input.SetLabel("")
+
                 self.parent.show_user_frame(username ,self)
 
             else:
@@ -125,9 +135,6 @@ class RegisterPage(wx.Panel):
         flag = Utilities.check_user_input(self, self.error1, username)
         flag = Utilities.check_email_input(self, self.error2, email) and flag
         flag = Utilities.check_password_input(self, self.error3, password) and flag
-        username = self.username.GetLineText(lineNo=0)
-        email = self.email.GetLineText(lineNo=0)
-        password = self.password.GetLineText(lineNo=0)
         return flag
 
 

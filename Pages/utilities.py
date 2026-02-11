@@ -1,5 +1,7 @@
 import wx
 import re
+import json
+import socket
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -131,3 +133,21 @@ class Utilities():
         for input in inputs:
             input.SetLabel("")
         parent.show_frame(cur=cur)
+
+
+    def remember_me(time):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Remember me".encode())
+        client.recv(1024)
+        with open('authToken.json', 'r') as file:
+            tokens = json.load(file)
+            if time == 'first':
+                email, token = next(iter(tokens.items()))
+            else:
+                token = tokens[time]
+        client.send(token.encode())
+        username = client.recv(1024).decode()
+        client.close()
+        return username
+    

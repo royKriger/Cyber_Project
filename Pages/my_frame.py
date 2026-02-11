@@ -1,6 +1,5 @@
 import os
 import wx
-import socket
 from user_page import UserPage
 from utilities import Utilities
 from first_page import FirstPage
@@ -27,17 +26,9 @@ class MyFrame(wx.Frame):
             cur.Hide()
             self.pages[F] = cur
         
-        if os.path.isfile('authToken.txt'):
-            client = socket.socket()
-            client.connect((Utilities.get_pc_ip(), 8200))
-            client.send("Remember me".encode())
-            client.recv(1024)
-            with open('authToken.txt', 'r') as file:
-                token = file.read()
-            client.send(token.encode())
-            username = client.recv(1024).decode()
+        if os.path.isfile('authToken.json'):
+            username = Utilities.remember_me('first')
             self.show_user_frame(username)
-            client.close()
         else:
             self.show_frame()
 

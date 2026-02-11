@@ -1,7 +1,9 @@
 import wx
 import os
+import json
 import socket
 from utilities import Utilities
+from login_page import LoginPage
 from cryptography.hazmat.primitives import serialization
 
 
@@ -69,8 +71,8 @@ class UserPage(wx.Panel):
         img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
         img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
         logo_bitmap = wx.Bitmap(img)
-        self.logo_button = wx.BitmapButton(self, wx.ID_ANY, logo_bitmap)
-        self.logo_button.Bind(wx.EVT_BUTTON, self.on_logo_click)
+        self.logo_button = wx.BitmapButton(self, wx.ID_ANY, logo_bitmap, name='User')
+        self.logo_button.Bind(wx.EVT_BUTTON, lambda event : self.show_popup(event, ["Add account", "Sign out"]))
         right_sidebar_sizer.Add(self.logo_button, 0, wx.RIGHT | wx.TOP, 10)
         self.sizer.Add(right_sidebar_sizer, 0, wx.LEFT, 10)
 
@@ -295,26 +297,21 @@ class UserPage(wx.Panel):
         return folders, files
 
 
-    def on_logo_click(self, event):
-        if self.username == "admin":
-            email = "admin@gmail.com"
-        else:
-            client = socket.socket()
-            client.connect((Utilities.get_pc_ip(), 8200))
-            client.send("Get email".encode())
-            client.recv(1024)
-            client.send(self.username.encode())
-            email = client.recv(1024).decode()
-
-        self.show_popup(event, ["Sign out"], [email])
-
-
     def sign_out(self, popup_win):
         popup_win.Hide()
-        if os.path.isfile('authToken.txt'):
-            os.remove('authToken.txt')
+        if os.path.isfile('authToken.json'):
+            os.remove('authToken.json')
         self.current_folder = []
         self.parent.show_frame(cur=self)
+
+
+    def switch_account(self, popup_win, action):
+        popup_win.Hide()
+        if action == 'login':
+            self.parent.show_frame(LoginPage, self)
+        else:
+            username = Utilities.remember_me(action)
+            self.parent.show_user_frame(username, self)
 
 
     def get_user_filenames_from_server(self):
@@ -456,20 +453,25 @@ class UserPage(wx.Panel):
             file.write(file_content)
 
 
-    def show_popup(self, event, button_list, label_list = []):
+    def show_popup(self, event, button_list, father_popup=None):
         popup = wx.PopupTransientWindow(self, flags=wx.BORDER_NONE)
 
         btn = event.GetEventObject()
         btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
 
         panel = wx.Panel(popup)
-        panel.SetBackgroundColour(wx.Colour(250, 250, 251))
+        panel.SetBackgroundColour(wx.Colour(200, 200, 200))
         
         sizer = wx.BoxSizer(wx.VERTICAL)
-
-        for label_name in label_list:
-            label = wx.StaticText(panel, label=label_name)
-            sizer.Add(label, 0, wx.ALL, 10)
+        if btn.Name == "User":
+            if os.path.isfile('authToken.json'):
+                with open('authToken.json', 'r') as file:
+                    emails = list(json.load(file).keys())
+                    for email in emails:
+                        button = wx.Button(panel, label=email)
+                        panel.Bind(wx.EVT_BUTTON, lambda event, e=email: self.switch_account(popup, e), button)
+                        sizer.Add(button, 0, wx.ALL, 10)
+                    sizer.Add(wx.StaticLine(panel, style=wx.LI_HORIZONTAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
 
         for button_name in button_list:
             button = wx.Button(panel, label=button_name)
@@ -482,19 +484,41 @@ class UserPage(wx.Panel):
             elif button_name == "Delete":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_files(event, btn), button)
             elif button_name == "Sign out":
+                if os.path.isfile('authToken.json'):
+                    with open('authToken.json', 'r') as file:
+                        emails = list(json.load(file).keys())
+                if len(emails) > 1:
+                    one = wx.Button(panel, label='Sign out one account')
+                    panel.Bind(wx.EVT_BUTTON, lambda evt: self.show_popup(event, emails, popup), one)
+                    sizer.Add(one, 0, wx.ALL, 10)
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup), button)
-            
+            elif button_name == "Add account":
+                panel.Bind(wx.EVT_BUTTON, lambda evt: self.switch_account(popup, 'login'), button)
+            elif button_name.endswith('@gmail.com'):
+                panel.Bind(wx.EVT_BUTTON, lambda evt, account=button_name: self.delete_account(father_popup, popup, account), button)
             sizer.Add(button, 0, wx.ALL, 10)
         
-        panel.SetSizer(sizer)
+        panel.SetSizer(sizer)   
         sizer.Fit(panel)
         popup.SetSize(panel.GetSize())
 
         if btn.Name == "Add":
             popup.Position(btn_pos, (100, -55))
+        elif btn.Name == "User":
+            popup.Position(btn_pos, (-112, -55))
         else:
-            popup.Position(btn_pos, (0, 0))
+            popup.Position(btn_pos, (-6, 0))
         popup.Popup()
+
+
+    def delete_account(self, father_popup, popup, account):
+        with open('authToken.json', 'r') as file:
+            emails = json.load(file)
+            del emails[account]
+        with open('authToken.json', 'w') as file:
+            json.dump(emails, file)
+        popup.Hide()
+        father_popup.Hide()
 
 
     def show_dialog(self, item : str):

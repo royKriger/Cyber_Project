@@ -1,4 +1,6 @@
 import wx
+import os
+import json
 from socket import socket
 from utilities import Utilities
 from cryptography.hazmat.primitives import serialization
@@ -88,12 +90,23 @@ class LoginPage(wx.Panel):
                 self.email.SetLabel("")
                 self.password.SetLabel("")
                 if len(data.split('|')) > 1:
-                    with open('authToken.txt', 'w') as file:
-                        file.write(data.split('|')[-1])
+                    exists = os.path.isfile('authToken.json')
+                    json_dump = {}
+                    if exists:
+                        with open('authToken.json', 'r') as file:
+                            json_dump = json.load(file)
+                            
+                    with open('authToken.json', 'w') as file:
+                        json_dump[email] = data.split("|")[-1]
+                        json.dump(json_dump, file)
+                        
                 data = f"logged in,{email}"
                 encrypted_data = Utilities.encrypt(data.encode(), public_key)
                 client.sendall(encrypted_data)
                 username = client.recv(1024).decode()
+                for input in self.inputs:
+                    input.SetLabel("")
+
                 self.parent.show_user_frame(username, self)
 
             else:
@@ -108,8 +121,6 @@ class LoginPage(wx.Panel):
     def check_if_all_input_good(self, email, password):
         flag = Utilities.check_email_input(self, self.error1, email)
         flag = Utilities.check_password_input(self, self.error2, password) and flag
-        email = self.email.GetLineText(lineNo=0)
-        password = self.password.GetLineText(lineNo=0)
         return flag
     
     

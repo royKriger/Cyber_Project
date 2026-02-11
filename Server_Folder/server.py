@@ -2,7 +2,6 @@ import os
 import socket
 import shutil
 import select
-import base64
 import bcrypt
 import sqlite3
 from cryptography.hazmat.backends import default_backend
@@ -43,16 +42,11 @@ class Server():
                             sock.send("Joules".encode())
                             self.returned_client(sock)
                             all_sock.remove(sock)
-                        if request == "Sign up" or request == "Log in":
+                        elif request == "Sign up" or request == "Log in":
                             sock.send("Joules".encode())
                             self.accept_client(sock)
                             all_sock.remove(sock)
                         elif request == "Log out":
-                            all_sock.remove(sock)
-                            sock.close()
-                        elif request == "Get email":
-                            sock.send("Joules".encode())
-                            self.send_email(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Get filenames":
@@ -130,7 +124,7 @@ class Server():
                 data = "502|Email does not exist! "
 
         if action == "register":
-            user, email, password = decrypted_data[0], decrypted_data[1], base64.b64decode(decrypted_data[2]).decode()
+            user, email, password = decrypted_data[0], decrypted_data[1], decrypted_data[2]
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
             conn_cur.execute("SELECT User FROM Users")
@@ -154,7 +148,7 @@ class Server():
                 os.mkdir(f"{self.path}\\{email.split('@')[0]}")
 
         client.send(data.encode())
-        if data.startswith("500"):
+        if data.startswith("50"):
             return
 
         encrypted_data = client.recv(4096)
@@ -349,14 +343,9 @@ class Server():
             if self.is_image(path):
                 self.bytes_files.append(path)
 
-        
-    def send_email(self, client):
-        email = self.get_email(client)
-        client.send(email.encode())
-
 
     def send_filenames(self, client):
-        email = self.get_email(client).split('@')[0]
+        email = self.get_email(client)
         self.text_files, self.bytes_files = [], []
 
         client.send("Joules".encode())
@@ -377,7 +366,7 @@ class Server():
 
 
     def get_file_or_folder(self, client, request):
-        email = self.get_email(client).split('@')[0]
+        email = self.get_email(client)
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
@@ -464,7 +453,7 @@ class Server():
 
 
     def remove_file(self, client):
-        email = self.get_email(client).split('@')[0]
+        email = self.get_email(client)
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
@@ -473,11 +462,11 @@ class Server():
         if os.path.isdir(path):
             shutil.rmtree(path)
         else:
-            os.remove(path)
             if self.is_txt(path):
                 self.text_files.remove(path)
             else:
                 self.bytes_files.remove(path)
+            os.remove(path)
 
     
     def get_email(self, client):
@@ -491,7 +480,7 @@ class Server():
         conn.commit()
         conn.close()
 
-        return email
+        return email.split('@')[0]
         
 
     def if_item_exists_dir(self, file_name, full_path, file_or_folder):
