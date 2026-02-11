@@ -301,12 +301,16 @@ class UserPage(wx.Panel):
         popup_win.Hide()
         if os.path.isfile('authToken.json'):
             os.remove('authToken.json')
+        if os.path.isfile('authToken.txt'):
+            os.remove('authToken.txt')
         self.current_folder = []
         self.parent.show_frame(cur=self)
 
 
     def switch_account(self, popup_win, action):
         popup_win.Hide()
+        if os.path.isfile('authToken.txt'):
+            os.remove('authToken.txt')
         if action == 'login':
             self.parent.show_frame(LoginPage, self)
         else:
@@ -463,6 +467,13 @@ class UserPage(wx.Panel):
         panel.SetBackgroundColour(wx.Colour(200, 200, 200))
         
         sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        if not os.path.isfile('authToken.json'):
+            with open('authToken.txt', 'r') as file:
+                email = file.read()
+            button = wx.Button(panel, label=email)
+            sizer.Add(button, 0, wx.ALL, 10)
+
         if btn.Name == "User":
             if os.path.isfile('authToken.json'):
                 with open('authToken.json', 'r') as file:
@@ -519,6 +530,8 @@ class UserPage(wx.Panel):
             json.dump(emails, file)
         popup.Hide()
         father_popup.Hide()
+        username = Utilities.remember_me('first')
+        self.parent.show_user_frame(username, self)
 
 
     def show_dialog(self, item : str):

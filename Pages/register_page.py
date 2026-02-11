@@ -114,6 +114,10 @@ class RegisterPage(wx.Panel):
                     with open('authToken.json', 'w') as file:
                         json_dump[email] = data.split("|")[-1]
                         json.dump(json_dump, file)
+                else:
+                    with open('authToken.txt', 'w') as file:
+                        file.write(email)
+
                 data = f"logged in,{email}"
                 encrypted_data = Utilities.encrypt(data.encode(), public_key)
                 client.sendall(encrypted_data)
