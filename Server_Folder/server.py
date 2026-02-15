@@ -106,13 +106,6 @@ class Server():
         data = "200"
         if action == "login":
             email, password = decrypted_data[0], decrypted_data[1].encode()
-            if len(decrypted_data) > 2:
-                conn_cur.execute("SELECT User FROM Users WHERE Email=?", (email,))
-                username = conn_cur.fetchone()[0]
-                login_id = bcrypt.hashpw(username.encode(), bcrypt.gensalt()).decode()
-                print(login_id)
-                conn_cur.execute("UPDATE Users SET login_ID=? WHERE Email=?", (login_id, email))
-                data += '|' + login_id
             conn_cur.execute("SELECT Email FROM Users")
             emails = conn_cur.fetchall()
             if (email, ) in emails:
@@ -122,6 +115,13 @@ class Server():
                     data = "501|Password or email not correct! "
             else:
                 data = "502|Email does not exist! "
+            if len(decrypted_data) > 2 and data.startswith('200'):
+                conn_cur.execute("SELECT User FROM Users WHERE Email=?", (email,))
+                username = conn_cur.fetchone()[0]
+                login_id = bcrypt.hashpw(username.encode(), bcrypt.gensalt()).decode()
+                print(login_id)
+                conn_cur.execute("UPDATE Users SET login_ID=? WHERE Email=?", (login_id, email))
+                data += '|' + login_id
 
         if action == "register":
             user, email, password = decrypted_data[0], decrypted_data[1], decrypted_data[2]

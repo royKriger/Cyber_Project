@@ -111,12 +111,12 @@ class UserPage(wx.Panel):
 
             button = wx.Button(self.main_panel, wx.ID_ANY, label=self.folders[i], name="folder")
             button.Bind(wx.EVT_LEFT_DCLICK, lambda event: self.on_dclick_folder(event))
-            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Delete"]), button)
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Share", "Delete"]), button)
             sizers[0].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         for i in range(len(self.files)):
             button = wx.Button(self.main_panel, wx.ID_ANY, label=self.files[i], name="file")
-            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Delete"]), button)
+            self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Share", "Delete"]), button)
             
             if self.files[i].endswith('.zip'):
                 sizers[2].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -364,7 +364,7 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\roykr\Desktop\{label}'
+        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path) #Makes a new folder in the desktop
             self.recieve_all_files_and_folders(client, full_path)
@@ -374,6 +374,12 @@ class UserPage(wx.Panel):
         
         client.recv(1024)
         self.recieve_file(client, full_path)
+
+
+    def share_files(self):
+        frame = wx.Frame(self.parent, title='Share With', size=(400, 200))
+        frame.Centre(True)
+        frame.Show()
 
 
     def recieve_all_files_and_folders(self, client, full_path):
@@ -452,7 +458,7 @@ class UserPage(wx.Panel):
             with open(full_path, 'w') as file:
                 file.write(file_content)
             return
-            
+
         with open(full_path, 'wb') as file:
             file.write(file_content)
 
@@ -468,12 +474,6 @@ class UserPage(wx.Panel):
         
         sizer = wx.BoxSizer(wx.VERTICAL)
         
-        if not os.path.isfile('authToken.json'):
-            with open('authToken.txt', 'r') as file:
-                email = file.read()
-            button = wx.Button(panel, label=email)
-            sizer.Add(button, 0, wx.ALL, 10)
-
         if btn.Name == "User":
             if os.path.isfile('authToken.json'):
                 with open('authToken.json', 'r') as file:
@@ -483,6 +483,11 @@ class UserPage(wx.Panel):
                         panel.Bind(wx.EVT_BUTTON, lambda event, e=email: self.switch_account(popup, e), button)
                         sizer.Add(button, 0, wx.ALL, 10)
                     sizer.Add(wx.StaticLine(panel, style=wx.LI_HORIZONTAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+            else:
+                with open('authToken.txt', 'r') as file:
+                    email = file.read()
+                button = wx.Button(panel, label=email)
+                sizer.Add(button, 0, wx.ALL, 10)
 
         for button_name in button_list:
             button = wx.Button(panel, label=button_name)
@@ -492,16 +497,18 @@ class UserPage(wx.Panel):
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialoge(event), button)
             elif button_name == "Download":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
+            elif button_name == "Share":
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.share_files(), button)
             elif button_name == "Delete":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_files(event, btn), button)
             elif button_name == "Sign out":
                 if os.path.isfile('authToken.json'):
                     with open('authToken.json', 'r') as file:
                         emails = list(json.load(file).keys())
-                if len(emails) > 1:
-                    one = wx.Button(panel, label='Sign out one account')
-                    panel.Bind(wx.EVT_BUTTON, lambda evt: self.show_popup(event, emails, popup), one)
-                    sizer.Add(one, 0, wx.ALL, 10)
+                    if len(emails) > 1:
+                        one = wx.Button(panel, label='Sign out one account')
+                        panel.Bind(wx.EVT_BUTTON, lambda evt: self.show_popup(event, emails, popup), one)
+                        sizer.Add(one, 0, wx.ALL, 10)
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup), button)
             elif button_name == "Add account":
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.switch_account(popup, 'login'), button)

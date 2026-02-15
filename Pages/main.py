@@ -1,4 +1,5 @@
 import wx
+import os
 from my_frame import MyFrame
 
 
@@ -13,3 +14,5 @@ class MyApp(wx.App):
 if __name__ == "__main__":
     app = MyApp(False)
     app.MainLoop()
+    if os.path.isfile('authToken.txt'):
+        os.remove('authToken.txt')

@@ -107,6 +107,7 @@ class RegisterPage(wx.Panel):
                 self.password.SetLabel("")
                 if len(data.split('|')) > 1:
                     exists = os.path.isfile('authToken.json')
+                    json_dump = {}
                     if exists:
                         with open('authToken.json', 'r') as file:
                             json_dump = json.load(file)
