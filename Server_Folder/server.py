@@ -42,11 +42,25 @@ class Server():
                             sock.send("Joules".encode())
                             self.returned_client(sock)
                             all_sock.remove(sock)
+                            sock.close()
                         elif request == "Sign up" or request == "Log in":
                             sock.send("Joules".encode())
                             self.accept_client(sock)
                             all_sock.remove(sock)
+                            sock.close()
                         elif request == "Log out":
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request.startswith("Share file"):
+                            username = ''
+                            if len(request.split('|')) > 1:
+                                username = request.split('|')[-1]
+                            self.share_file(sock, username)
+                            all_sock.remove(sock)
+                            sock.close()
+                        elif request.startswith("Share to user"):
+                            sock.send("Joules".encode())
+                            self.recv_files_to_user(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Get filenames":
@@ -281,7 +295,41 @@ class Server():
         conn.commit()
         conn.close()
 
-    
+
+    def share_file(self, client : socket.socket, username):
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
+               
+        if username != '':
+            conn_cur.execute("SELECT Emails FROM Connected WHERE Users = ?", (username, ))
+            cur = conn_cur.fetchall()
+            connected_emails = []
+            for email in cur:
+                if not email[0].startswith('admin'):
+                    connected_emails.append(email[0]) 
+            client.send(','.join(connected_emails).encode())
+            return
+        
+        client.send("Joules".encode())
+        prefix = client.recv(1024).decode()
+        conn_cur.execute("SELECT Email FROM Users")
+        cur = conn_cur.fetchall()
+        emails = []
+        for email in cur:
+            if not email[0].startswith('admin'):
+                emails.append(email[0])
+        if prefix in emails:
+            client.send('True'.encode())
+        else:
+            client.send('False'.encode())
+
+
+    def recv_files_to_user(self, client):
+        email_to_recv = client.recv(1024).decode()
+        full_path = os.path.join(self.path, email_to_recv.split('@')[0], 'Shared files')
+        print(full_path)
+
+
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
         if not folders:

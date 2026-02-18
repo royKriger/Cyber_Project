@@ -17,6 +17,12 @@ class UserPage(wx.Panel):
 
         self.folders, self.files = self.get_user_filenames_from_server()
         
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send(f"Share file|{self.username}".encode())
+        self.connected_emails = client.recv(1024).decode().split(',')
+        client.close()
+
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.timer = wx.Timer(self)
 
@@ -348,7 +354,7 @@ class UserPage(wx.Panel):
         self.print_files()
 
 
-    def download_folder_or_files(self, event, btn):
+    def download_folder_or_files(self, event, btn : wx.Button):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         name = btn.Name
@@ -377,10 +383,84 @@ class UserPage(wx.Panel):
 
 
     def share_files(self):
-        frame = wx.Frame(self.parent, title='Share With', size=(400, 200))
-        frame.Centre(True)
+        frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
+        frame.Centre()
         frame.Show()
 
+        panel = wx.Panel(frame, size=(525, 300))
+        panel.SetBackgroundColour(wx.Colour(245, 245, 246))
+        
+        frame_sizer = wx.BoxSizer(wx.VERTICAL)
+        frame_sizer.Add(panel, 1, wx.EXPAND)
+
+        panel_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        label = wx.StaticText(panel, label='Who do you want to share your files with?')
+        font = wx.Font(15, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
+        label.SetFont(font)
+
+        panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
+
+        email_input = wx.TextCtrl(panel, size=(250, 30))
+        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel), email_input)
+        panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+
+        panel.SetSizer(panel_sizer)
+        frame.SetSizer(frame_sizer)
+
+        panel.Layout()
+        frame.Layout()
+        self.emails_match(None, panel)
+        
+    
+    def emails_match(self, event, parent : wx.Window):
+        sizer = parent.GetSizer()
+        if event != None:
+            prefix = event.GetString()
+        else:
+            prefix = ''
+        self.delete_unwanted_files(sizer)
+        if not prefix.endswith('@gmail.com'):
+            for email in self.connected_emails:
+                if prefix in email:
+                    button = wx.Button(parent, label=email)
+                    parent.Bind(wx.EVT_BUTTON, lambda event: self.send_files_to_user(email), button)
+                    font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+                    button.SetFont(font)
+                    sizer.Add(button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        else:
+            client = socket.socket()
+            client.connect((Utilities.get_pc_ip(), 8200))
+            client.send('Share file'.encode())
+            client.recv(1024).decode()
+            client.send(prefix.encode())
+            exists = client.recv(1024).decode()
+            client.close()
+            if exists == 'True':
+                button = wx.Button(parent, label=prefix)  
+                parent.Bind(wx.EVT_BUTTON, lambda event: self.send_files_to_user(prefix), button)
+                font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+                button.SetFont(font)
+                sizer.Add(button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+            else:
+                label = wx.StaticText(parent, label='No emails found with this prefix')
+                font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+                label.SetFont(font)
+                label.SetForegroundColour(wx.RED)
+                sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        
+        if event != None:
+            event.Skip()
+        parent.Layout()
+
+
+    def send_files_to_user(self, email):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send('Share to user'.encode())
+        client.recv(1024)
+        client.send(email.encode())
+        
 
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
