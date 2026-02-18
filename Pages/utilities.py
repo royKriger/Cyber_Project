@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 class Utilities():
     def get_pc_ip():
         return "localhost"
-    
+
 
     def check_user_input(parent, label : wx.StaticText, username):
         label.SetForegroundColour(wx.RED)

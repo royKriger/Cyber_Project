@@ -17,12 +17,6 @@ class UserPage(wx.Panel):
 
         self.folders, self.files = self.get_user_filenames_from_server()
         
-        client = socket.socket()
-        client.connect((Utilities.get_pc_ip(), 8200))
-        client.send(f"Share file|{self.username}".encode())
-        self.connected_emails = client.recv(1024).decode().split(',')
-        client.close()
-
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.timer = wx.Timer(self)
 
@@ -38,6 +32,10 @@ class UserPage(wx.Panel):
         self.add = wx.Button(self, label="+ Add", size=(100, 60), name="Add")
         self.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Upload file", "Upload folder"]), self.add)
         left_sidebar_sizer.Add(self.add, 0, wx.LEFT, 5)
+
+        self.share = wx.Button(self, label="Files Shared \n with Me", size=(100, 60), name="SharedFiles")
+        self.Bind(wx.EVT_BUTTON, lambda event: self.on_dclick_folder(event), self.share)
+        left_sidebar_sizer.Add(self.share, 0, wx.LEFT | wx.TOP, 5)
         self.sizer.Add(left_sidebar_sizer, 0, wx.LEFT, 10)
         
         self.main_panel = wx.Panel(self)
@@ -58,7 +56,7 @@ class UserPage(wx.Panel):
 
         self.path_buttons = []
 
-        button = wx.Button(self.main_panel, label=self.username, size=(60, 40))
+        button = wx.Button(self.main_panel, label=self.username, size=(70, 40))
         self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
         self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         self.path_buttons.append(button)
@@ -343,14 +341,23 @@ class UserPage(wx.Panel):
     def on_dclick_folder(self, event):
         button = event.GetEventObject()
         folder = button.Label
-        self.current_folder.append(folder)
+        if folder.startswith('Files Shared'):
+            folder = button.Name
+
+        if not folder in self.current_folder:
+            if folder == 'SharedFiles':
+                self.current_folder = []
+                self.path_buttons = self.path_buttons[0:1]
+                self.delete_unwanted_files(self.path_sizer)
+
+            self.current_folder.append(folder)
+            button = wx.Button(self.main_panel, label=folder, size=(70, 40))
+            self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
+            self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+            self.path_buttons.append(button)
+        
         self.folders, self.files = self.get_user_filenames_from_server()
         
-        button = wx.Button(self.main_panel, label=folder, size=(60, 40))
-        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
-        self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
-        self.path_buttons.append(button)
-
         self.print_files()
 
 
@@ -370,7 +377,7 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
+        full_path =  fr'C:\Users\roykr\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path) #Makes a new folder in the desktop
             self.recieve_all_files_and_folders(client, full_path)
@@ -382,7 +389,7 @@ class UserPage(wx.Panel):
         self.recieve_file(client, full_path)
 
 
-    def share_files(self):
+    def share_files(self, filename):
         frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
         frame.Centre()
         frame.Show()
@@ -402,7 +409,7 @@ class UserPage(wx.Panel):
         panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
 
         email_input = wx.TextCtrl(panel, size=(250, 30))
-        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel), email_input)
+        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename), email_input)
         panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)
@@ -410,10 +417,10 @@ class UserPage(wx.Panel):
 
         panel.Layout()
         frame.Layout()
-        self.emails_match(None, panel)
+        self.emails_match(None, panel, filename)
         
     
-    def emails_match(self, event, parent : wx.Window):
+    def emails_match(self, event, parent : wx.Window, file : str):
         sizer = parent.GetSizer()
         if event != None:
             prefix = event.GetString()
@@ -421,24 +428,30 @@ class UserPage(wx.Panel):
             prefix = ''
         self.delete_unwanted_files(sizer)
         if not prefix.endswith('@gmail.com'):
-            for email in self.connected_emails:
+            client = socket.socket()
+            client.connect((Utilities.get_pc_ip(), 8200))
+            client.send(f"Share file|{self.username}".encode())
+            connected_emails = client.recv(1024).decode().split(',')
+            client.close()
+
+            for email in connected_emails:
                 if prefix in email:
                     button = wx.Button(parent, label=email)
-                    parent.Bind(wx.EVT_BUTTON, lambda event: self.send_files_to_user(email), button)
+                    parent.Bind(wx.EVT_BUTTON, lambda event, e=email: self.send_files_to_user(e, file), button)
                     font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
                     button.SetFont(font)
                     sizer.Add(button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
         else:
             client = socket.socket()
             client.connect((Utilities.get_pc_ip(), 8200))
-            client.send('Share file'.encode())
+            client.send(f'Share file'.encode())
             client.recv(1024).decode()
             client.send(prefix.encode())
             exists = client.recv(1024).decode()
             client.close()
             if exists == 'True':
                 button = wx.Button(parent, label=prefix)  
-                parent.Bind(wx.EVT_BUTTON, lambda event: self.send_files_to_user(prefix), button)
+                parent.Bind(wx.EVT_BUTTON, lambda event, e=prefix: self.send_files_to_user(e, file), button)
                 font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
                 button.SetFont(font)
                 sizer.Add(button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
@@ -454,13 +467,20 @@ class UserPage(wx.Panel):
         parent.Layout()
 
 
-    def send_files_to_user(self, email):
+    def send_files_to_user(self, email, file):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send('Share to user'.encode())
         client.recv(1024)
-        client.send(email.encode())
-        
+        client.send(f"{self.username}|{email}".encode())
+        client.recv(1024)
+
+        if len(self.current_folder) > 0:
+            file = os.path.join(('\\').join(self.current_folder), file)
+
+        client.send(file.encode())
+        client.close()
+
 
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
@@ -548,6 +568,7 @@ class UserPage(wx.Panel):
 
         btn = event.GetEventObject()
         btn_pos = btn.ClientToScreen((0, btn.GetSize().height))
+        filename = btn.Label
 
         panel = wx.Panel(popup)
         panel.SetBackgroundColour(wx.Colour(200, 200, 200))
@@ -578,7 +599,7 @@ class UserPage(wx.Panel):
             elif button_name == "Download":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
             elif button_name == "Share":
-                panel.Bind(wx.EVT_BUTTON, lambda event: self.share_files(), button)
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.share_files(filename), button)
             elif button_name == "Delete":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_files(event, btn), button)
             elif button_name == "Sign out":

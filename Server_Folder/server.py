@@ -160,6 +160,7 @@ class Server():
                     conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
                 (user, email, password))
                 os.mkdir(f"{self.path}\\{email.split('@')[0]}")
+                os.mkdir(f"{self.path}\\{email.split('@')[0]}\\SharedFiles")
 
         client.send(data.encode())
         if data.startswith("50"):
@@ -288,6 +289,7 @@ class Server():
             shutil.rmtree(os.path.join(full_path, folder_name))
         client.send('doesnt exist'.encode())
 
+
         full_path = os.path.join(full_path, folder_name)
         os.mkdir(full_path)
         self.recieve_all_files_and_folders(client, full_path)
@@ -323,12 +325,50 @@ class Server():
         else:
             client.send('False'.encode())
 
+        conn.commit()
+        conn.close()
+
 
     def recv_files_to_user(self, client):
-        email_to_recv = client.recv(1024).decode()
-        full_path = os.path.join(self.path, email_to_recv.split('@')[0], 'Shared files')
-        print(full_path)
+        conn = sqlite3.connect(self.database)
+        conn_cur = conn.cursor()
 
+        username, email_to_recv = client.recv(1024).decode().split('|')
+        conn_cur.execute("SELECT Emails FROM Connected WHERE Users = ?", (username, ))
+        cur = conn_cur.fetchall()
+        emails = []
+        for email in cur:
+            emails.append(email[0])
+        if email_to_recv not in emails:
+            conn_cur.execute("INSERT INTO Connected (Users, Emails) VALUES (?, ?)", (username, email_to_recv))
+
+        conn_cur.execute("SELECT Email FROM Users WHERE User = ?", (username, ))
+        email_to_send = conn_cur.fetchone()[0]
+
+        client.send("Joules^15".encode())
+        path_to_send = client.recv(1024).decode()
+
+        filename = path_to_send.split('\\')[-1]
+        path_to_send = os.path.join(self.path, email_to_send.split('@')[0], path_to_send)
+        print(path_to_send)
+        path_to_recieve = os.path.join(self.path, email_to_recv.split('@')[0], 'SharedFiles', filename)
+
+        if os.path.isfile(path_to_send):
+            if self.is_txt(path_to_send):
+                with open(path_to_send, 'r') as f:
+                    content = f.read()
+                with open(path_to_recieve, 'w') as f:
+                    f.write(content)
+
+            else:
+                with open(path_to_send, 'rb') as f:
+                    content = f.read()
+                with open(path_to_recieve, 'wb') as f:
+                    f.write(content)
+
+        conn.commit()
+        conn.close()
+        
 
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
@@ -475,7 +515,8 @@ class Server():
         for item in items:
             full_path = os.path.join(folder_path, item)
             if os.path.isdir(full_path):
-                folder_names.append(item)
+                if item != 'SharedFiles':
+                    folder_names.append(item)
             else:
                 file_names.append(item)
 
