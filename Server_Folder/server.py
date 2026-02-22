@@ -289,7 +289,6 @@ class Server():
             shutil.rmtree(os.path.join(full_path, folder_name))
         client.send('doesnt exist'.encode())
 
-
         full_path = os.path.join(full_path, folder_name)
         os.mkdir(full_path)
         self.recieve_all_files_and_folders(client, full_path)
@@ -350,25 +349,51 @@ class Server():
 
         filename = path_to_send.split('\\')[-1]
         path_to_send = os.path.join(self.path, email_to_send.split('@')[0], path_to_send)
-        print(path_to_send)
+
         path_to_recieve = os.path.join(self.path, email_to_recv.split('@')[0], 'SharedFiles', filename)
 
         if os.path.isfile(path_to_send):
-            if self.is_txt(path_to_send):
-                with open(path_to_send, 'r') as f:
-                    content = f.read()
-                with open(path_to_recieve, 'w') as f:
-                    f.write(content)
-
-            else:
-                with open(path_to_send, 'rb') as f:
-                    content = f.read()
-                with open(path_to_recieve, 'wb') as f:
-                    f.write(content)
-
+            self.send_file_to_reciever(path_to_send, path_to_recieve)
+        else:
+            os.mkdir(path_to_recieve)
+            self.share_all_files_in_folder(client, path_to_send, path_to_recieve)
         conn.commit()
         conn.close()
+    
+    
+    def send_file_to_reciever(self, path_send, path_recv):
+            if self.is_txt(path_send):
+                with open(path_send, 'r') as f:
+                    content = f.read()
+                with open(path_recv, 'w') as f:
+                    f.write(content)
+            else:
+                with open(path_send, 'rb') as f:
+                    content = f.read()
+                with open(path_recv, 'wb') as f:
+                    f.write(content)
+
+
+    def share_all_files_in_folder(self, client, path_send, path_recv):
+        folders, files = self.get_and_send_folders_and_files(None, path_send)
+        print(folders, files)
+        if not folders:
+            for item in files:
+                path_send = os.path.join(path_send, item)
+                path_recv = os.path.join(path_recv, item)
+                self.send_file_to_reciever(path_send, path_recv)
+            return
         
+        for folder in folders:
+            path_send = os.path.join(path_send, folder)
+            path_recv = os.path.join(path_recv, folder)
+            os.mkdir(path_recv)
+            for item in files:
+                path_send_file = os.path.join(path_send, item)
+                path_recv_file = os.path.join(path_recv, item)
+                self.send_file_to_reciever(path_send_file, path_recv_file)
+            self.share_all_files_in_folder(client, path_send, path_recv)
+
 
     def recieve_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
@@ -520,25 +545,22 @@ class Server():
             else:
                 file_names.append(item)
 
-        files = ','.join(file_names)
-        folders = ','.join(folder_names)
-        if folders == '':
-            client.send("none".encode())
-            folders = []
-        else:
-            client.send(folders.encode())
-            folders = folders.split(',')
+        if client:
+            if len(folder_names) > 0:
+                folders = ','.join(folder_names)
+                client.send(folders.encode())
+            else:
+                client.send("none".encode())
+            
+            client.recv(1024)
+            
+            if len(file_names) > 0:
+                files = ','.join(file_names)
+                client.send(files.encode())
+            else:
+                client.send("none".encode())
 
-        client.recv(1024)
-
-        if files == '':
-            client.send("none".encode())
-            files = []
-        else:
-            client.send(files.encode())
-            files = files.split(',')
-
-        return folders, files
+        return folder_names, file_names
 
 
     def remove_file(self, client):

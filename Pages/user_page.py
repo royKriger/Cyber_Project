@@ -377,7 +377,7 @@ class UserPage(wx.Panel):
         client.send(label.encode())
         label = btn.Label
 
-        full_path =  fr'C:\Users\roykr\Desktop\{label}'
+        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
         if name == "folder":
             os.mkdir(full_path) #Makes a new folder in the desktop
             self.recieve_all_files_and_folders(client, full_path)
