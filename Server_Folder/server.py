@@ -160,7 +160,6 @@ class Server():
                     conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
                 (user, email, password))
                 os.mkdir(f"{self.path}\\{email.split('@')[0]}")
-                os.mkdir(f"{self.path}\\{email.split('@')[0]}\\SharedFiles")
 
         client.send(data.encode())
         if data.startswith("50"):
@@ -348,20 +347,34 @@ class Server():
         path_to_send = client.recv(1024).decode()
 
         filename = path_to_send.split('\\')[-1]
-        path_to_send = os.path.join(self.path, email_to_send.split('@')[0], path_to_send)
 
-        path_to_recieve = os.path.join(self.path, email_to_recv.split('@')[0], 'SharedFiles', filename)
+        if 'SharedFiles' in path_to_send:
+            path_to_send = path_to_send.replace('SharedFiles\\', '')
+            path_to_send = os.path.join(self.path.split('\\')[0], 'SharedFiles', email_to_send.split('@')[0], path_to_send)
+        else:
+            path_to_send = os.path.join(self.path, email_to_send.split('@')[0], path_to_send)
+
+        path_to_recieve = os.path.join(self.path.split('\\')[0], 'SharedFiles', email_to_recv.split('@')[0])
+
+        if not os.path.exists(path_to_recieve):
+            os.mkdir(path_to_recieve)
 
         if os.path.isfile(path_to_send):
-            self.send_file_to_reciever(path_to_send, path_to_recieve)
+            path_to_send = path_to_send.replace(f'\\{filename}', '')
+            self.send_file_to_reciever(path_to_send, path_to_recieve, filename)
         else:
+            path_to_recieve = os.path.join(path_to_recieve, filename)
             os.mkdir(path_to_recieve)
             self.share_all_files_in_folder(client, path_to_send, path_to_recieve)
+
         conn.commit()
         conn.close()
     
     
-    def send_file_to_reciever(self, path_send, path_recv):
+    def send_file_to_reciever(self, path_send, path_recv, item):
+            path_send = os.path.join(path_send, item)
+            path_recv = os.path.join(path_recv, item)
+
             if self.is_txt(path_send):
                 with open(path_send, 'r') as f:
                     content = f.read()
@@ -376,22 +389,17 @@ class Server():
 
     def share_all_files_in_folder(self, client, path_send, path_recv):
         folders, files = self.get_and_send_folders_and_files(None, path_send)
-        print(folders, files)
         if not folders:
             for item in files:
-                path_send = os.path.join(path_send, item)
-                path_recv = os.path.join(path_recv, item)
-                self.send_file_to_reciever(path_send, path_recv)
+                self.send_file_to_reciever(path_send, path_recv, item)
             return
         
         for folder in folders:
+            for item in files:
+                self.send_file_to_reciever(path_send, path_recv, item)
             path_send = os.path.join(path_send, folder)
             path_recv = os.path.join(path_recv, folder)
             os.mkdir(path_recv)
-            for item in files:
-                path_send_file = os.path.join(path_send, item)
-                path_recv_file = os.path.join(path_recv, item)
-                self.send_file_to_reciever(path_send_file, path_recv_file)
             self.share_all_files_in_folder(client, path_send, path_recv)
 
 
@@ -466,7 +474,13 @@ class Server():
         path = os.path.join(self.path, email)
         folder, check = folder.split("\n")
         if check:
-            path = os.path.join(path, folder)
+            if folder == 'SharedFiles':
+                path = os.path.join(self.path.split('\\')[0], folder, email)
+            elif 'SharedFiles' in folder:
+                folder = folder.replace('SharedFiles\\', '')
+                path = os.path.join(self.path.split('\\')[0], 'SharedFiles', email, folder)
+            else:
+                path = os.path.join(path, folder)
         
         _, files = self.get_and_send_folders_and_files(client, path)
         for file in files:
@@ -483,8 +497,11 @@ class Server():
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
-        
-        path = fr"{self.path}\{email}"
+        if 'SharedFiles' in file_name:
+            file_name = file_name.replace('SharedFiles\\', '')
+            path = os.path.join(self.path.split('\\')[0], 'SharedFiles', email)
+        else:
+            path = fr"{self.path}\{email}"
 
         if request.endswith("folder"):
             path = os.path.join(path, file_name)
@@ -533,6 +550,8 @@ class Server():
 
     
     def get_and_send_folders_and_files(self, client, folder_path):
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
         items = os.listdir(folder_path)
         folder_names = []
         file_names = []
@@ -540,8 +559,7 @@ class Server():
         for item in items:
             full_path = os.path.join(folder_path, item)
             if os.path.isdir(full_path):
-                if item != 'SharedFiles':
-                    folder_names.append(item)
+                folder_names.append(item)
             else:
                 file_names.append(item)
 
@@ -568,8 +586,11 @@ class Server():
         client.send("Joules^2".encode())
 
         file_name = client.recv(1024).decode()
-
-        path = os.path.join(self.path, email, file_name)
+        if 'SharedFiles' in file_name:
+            file_name = file_name.replace('SharedFiles\\', '')
+            path = os.path.join(self.path.split('\\')[0], 'SharedFiles', email, file_name)
+        else:
+            path = os.path.join(self.path, email, file_name)
         if os.path.isdir(path):
             shutil.rmtree(path)
         else:
