@@ -308,6 +308,13 @@ class Server():
                 if not email[0].startswith('admin'):
                     connected_emails.append(email[0]) 
             client.send(','.join(connected_emails).encode())
+            client.recv(1024)
+            conn_cur.execute("SELECT Times_Shared FROM Connected WHERE Users = ?", (username, ))
+            cur = conn_cur.fetchall()
+            times_shared = []
+            for time in cur:
+                times_shared.append(str(time[0])) 
+            client.send(','.join(times_shared).encode())
             return
         
         client.send("Joules".encode())
@@ -338,7 +345,12 @@ class Server():
         for email in cur:
             emails.append(email[0])
         if email_to_recv not in emails:
-            conn_cur.execute("INSERT INTO Connected (Users, Emails) VALUES (?, ?)", (username, email_to_recv))
+            conn_cur.execute("INSERT INTO Connected (Users, Emails, Times_Shared) VALUES (?, ?, ?)", (username, email_to_recv, 1))
+
+        conn_cur.execute("SELECT Times_Shared FROM Connected WHERE Users=? AND Emails=?", (username, email_to_recv))
+        times_shared = conn_cur.fetchone()[0]
+
+        conn_cur.execute("UPDATE Connected SET Times_Shared=? WHERE Users=? AND Emails=?", (times_shared + 1, username, email_to_recv))
 
         conn_cur.execute("SELECT Email FROM Users WHERE User = ?", (username, ))
         email_to_send = conn_cur.fetchone()[0]
@@ -360,12 +372,23 @@ class Server():
             os.mkdir(path_to_recieve)
 
         if os.path.isfile(path_to_send):
+            if os.path.isfile(os.path.join(path_to_recieve, filename)):
+                conn_cur.execute("UPDATE Connected SET Times_Shared=? WHERE Users=? AND Emails=?", (times_shared, username, email_to_recv))
+                conn.commit()
+                conn.close()
+                return
+            
             path_to_send = path_to_send.replace(f'\\{filename}', '')
             self.send_file_to_reciever(path_to_send, path_to_recieve, filename)
         else:
             path_to_recieve = os.path.join(path_to_recieve, filename)
-            if not os.path.exists(path_to_recieve):
-                os.mkdir(path_to_recieve)
+            if os.path.exists(path_to_recieve):
+                conn_cur.execute("UPDATE Connected SET Times_Shared=? WHERE Users=? AND Emails=?", (times_shared, username, email_to_recv))
+                conn.commit()
+                conn.close()
+                return
+
+            os.mkdir(path_to_recieve)
             self.share_all_files_in_folder(client, path_to_send, path_to_recieve)
 
         conn.commit()
@@ -540,7 +563,7 @@ class Server():
         if not folders:
             for item in files:
                 file_path = os.path.join(folder_path, item)
-                self.send_file(client, path)
+                self.send_file(client, file_path)
             return
         
         for folder in folders:

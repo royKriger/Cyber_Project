@@ -144,6 +144,10 @@ class UserPage(wx.Panel):
         for i in range(len(sizers)):
             if container_sizer[i].GetItemCount() > 1 and sizers[i].GetItemCount() > 0:
                 self.main_sizer.Add(container_sizer[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
+
+            elif container_sizer[i].GetItemCount() > 2:
+                self.main_sizer.Add(container_sizer[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
+
             else:
                 for item in container_sizer[i].GetChildren():
                     widget = item.GetWindow()
@@ -257,7 +261,7 @@ class UserPage(wx.Panel):
         if not folders:
             for item in files:
                 file_path = os.path.join(folder_path, item)
-                self.send_file(client, path)
+                self.send_file(client, file_path)
             return
         
         for folder in folders:
@@ -388,11 +392,14 @@ class UserPage(wx.Panel):
         client.connect((Utilities.get_pc_ip(), 8200))
         client.send(f"Share file|{self.username}".encode())
         connected_emails = client.recv(1024).decode().split(',')
+        client.send('Joules'.encode())
+        times_shared = client.recv(1024).decode().split(',')
         client.close()
 
         frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
         frame.Centre()
         frame.Show()
+        #frame.Bind(wx.EVT_KILL_FOCUS, lambda event: frame.Destroy())
 
         panel = wx.Panel(frame, size=(525, 300))
         panel.SetBackgroundColour(wx.Colour(245, 245, 246))
@@ -409,7 +416,7 @@ class UserPage(wx.Panel):
         panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
 
         email_input = wx.TextCtrl(panel, size=(250, 30))
-        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails), email_input)
+        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails, times_shared), email_input)
         panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)
@@ -417,17 +424,30 @@ class UserPage(wx.Panel):
 
         panel.Layout()
         frame.Layout()
-        self.emails_match(None, panel, filename, connected_emails)
+        self.emails_match(None, panel, filename, connected_emails, times_shared)
         
     
-    def emails_match(self, event, parent : wx.Window, file : str, connected_emails):
+    def emails_match(self, event, parent : wx.Window, file : str, connected_emails, times_shared):
         sizer = parent.GetSizer()
         if event != None:
             prefix = event.GetString()
         else:
             prefix = ''
         self.delete_unwanted_files(sizer)
-        if not prefix.endswith('@gmail.com'):
+        if prefix == '':
+            table = dict(zip(connected_emails, times_shared))
+            sorted_by_value = dict(sorted(table.items(), key=lambda item: item[1], reverse=True))
+            i = 0
+            emails = list(sorted_by_value.keys())
+            while i < 3 and i < len(emails):
+                button = wx.Button(parent, label=emails[i])
+                parent.Bind(wx.EVT_BUTTON, lambda event, e=emails[i]: self.send_files_to_user(e, file), button)
+                font = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Segoe UI")
+                button.SetFont(font)
+                sizer.Add(button, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+                i += 1
+
+        elif not prefix.endswith('@gmail.com'):
             for email in connected_emails:
                 if prefix in email:
                     button = wx.Button(parent, label=email)
