@@ -159,7 +159,7 @@ class Server():
                 else:
                     conn_cur.execute("INSERT INTO Users (User, Email, Password) VALUES (?, ?, ?)",
                 (user, email, password))
-                os.mkdir(f"{self.path}\\{email.split('@')[0]}")
+                os.mkdir(os.path.join(self.path, email.split('@')[0]))
 
         client.send(data.encode())
         if data.startswith("50"):
@@ -253,7 +253,7 @@ class Server():
             client.settimeout(self.timeout)
             os.remove(os.path.join(full_path, file_name))
 
-        self.get_file(client, file_name, full_path)
+        self.get_file(client, full_path, file_name)
 
         conn.commit()
         conn.close()
@@ -364,13 +364,14 @@ class Server():
             self.send_file_to_reciever(path_to_send, path_to_recieve, filename)
         else:
             path_to_recieve = os.path.join(path_to_recieve, filename)
-            os.mkdir(path_to_recieve)
+            if not os.path.exists(path_to_recieve):
+                os.mkdir(path_to_recieve)
             self.share_all_files_in_folder(client, path_to_send, path_to_recieve)
 
         conn.commit()
         conn.close()
-    
-    
+
+
     def send_file_to_reciever(self, path_send, path_recv, item):
             path_send = os.path.join(path_send, item)
             path_recv = os.path.join(path_recv, item)
@@ -407,14 +408,14 @@ class Server():
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.get_file(client, item, full_path)
+                self.get_file(client, full_path, item)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.get_file(client, item, full_path)
+                self.get_file(client, full_path, item)
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -436,7 +437,7 @@ class Server():
         return folders, files
 
 
-    def get_file(self, client, file, full_path):
+    def get_file(self, client, full_path, file):
         client.send("Joules".encode())
         data = client.recv(1024).decode()
         try:
@@ -448,6 +449,7 @@ class Server():
         print(file, length)
 
         path = os.path.join(full_path, file)
+
         file_content = client.recv(length)
         while len(file_content) < length:
             file_content += client.recv(length)
@@ -501,21 +503,18 @@ class Server():
             file_name = file_name.replace('SharedFiles\\', '')
             path = os.path.join(self.path.split('\\')[0], 'SharedFiles', email)
         else:
-            path = fr"{self.path}\{email}"
+            path = os.path.join(self.path, email)
 
         if request.endswith("folder"):
             path = os.path.join(path, file_name)
             self.send_all_files_in_folder(client, path)
             return
         
-        client.send("Joules1".encode())
-        self.send_all_files(client, path, file_name)
-        
-    
-    def send_all_files(self, client, folder_path, file):
-        client.recv(1024)
-        
-        full_path = os.path.join(folder_path, file)
+        full_path = os.path.join(path, file_name)
+        self.send_file(client, full_path)
+
+
+    def send_file(self, client, full_path):        
         if self.is_txt(full_path):
             with open(full_path, 'r') as f:
                 content = f.read()
@@ -524,28 +523,31 @@ class Server():
                 client.recv(1024)
 
                 client.send(content.encode())
-
-        else:
-            with open(full_path, 'rb') as f:
-                content = f.read()
-                length = len(content)
-                client.send(f"bytes|{length}".encode())
-                client.recv(1024)
-                
-                client.send(content)
+                return
+            
+        with open(full_path, 'rb') as f:
+            content = f.read()
+            length = len(content)
+            client.send(f"bytes|{length}".encode())
+            client.recv(1024)
+            
+            client.send(content)
         
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
+        client.recv(1024)
         if not folders:
             for item in files:
-                self.send_all_files(client, folder_path, item)
+                file_path = os.path.join(folder_path, item)
+                self.send_file(client, path)
             return
         
         for folder in folders:
             path = os.path.join(folder_path, folder)
             for item in files:
-                self.send_all_files(client, folder_path, item)
+                file_path = os.path.join(folder_path, item)
+                self.send_file(client, file_path)
             self.send_all_files_in_folder(client, path)
 
     

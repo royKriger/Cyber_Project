@@ -22,7 +22,7 @@ class UserPage(wx.Panel):
 
         left_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
         
-        icon_path = r"Pages\Assets\Logo.png"
+        icon_path = r"Assets\Logo.png"
         img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
         img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
         bitmap = wx.Bitmap(img)
@@ -71,7 +71,7 @@ class UserPage(wx.Panel):
         self.Bind(wx.EVT_TIMER, self.OnSingleClick)
 
         right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
-        icon_path = r"Pages\Assets\User_logo.jpg"
+        icon_path = r"Assets\User_logo.jpg"
         img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
         img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
         logo_bitmap = wx.Bitmap(img)
@@ -90,6 +90,10 @@ class UserPage(wx.Panel):
         self.delete_unwanted_files(self.path_sizer, stop)
 
         self.current_folder = self.current_folder[0:stop]
+        if 'SharedFiles' in self.current_folder:
+            self.add.Hide()
+        else:
+            self.add.Show()
         self.folders, self.files = self.get_user_filenames_from_server()
         self.print_files()
         self.path_buttons = self.path_buttons[0:stop + 1]
@@ -191,7 +195,7 @@ class UserPage(wx.Panel):
         file_name = full_path.split("\\")[-1]
         client.recv(1024)
         if len(self.current_folder) > 0:
-            file_name = ('\\').join(self.current_folder) + '\\' + file_name
+            file_name = os.path.join(*self.current_folder, file_name)
 
         encrypted_data = Utilities.encrypt(file_name.encode(), public_key)
         file_name = full_path.split("\\")[-1]
@@ -228,7 +232,7 @@ class UserPage(wx.Panel):
 
         folder_name = folder_path.split("\\")[-1]
         if len(self.current_folder) > 0:
-            folder_name = ('\\').join(self.current_folder) + '\\' + folder_name
+            folder_name = os.path.join(*self.current_folder, folder_name)
 
         client.send(folder_name.encode())
         folder_name = folder_path.split("\\")[-1]
@@ -247,24 +251,20 @@ class UserPage(wx.Panel):
         self.print_files()
 
 
-    def send_all_files(self, client, folder_path, file):
-        client.recv(1024)
-        
-        full_path = os.path.join(folder_path, file)
-        self.send_file(client, full_path)
-
-
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
+        client.recv(1024)
         if not folders:
             for item in files:
-                self.send_all_files(client, folder_path, item)
+                file_path = os.path.join(folder_path, item)
+                self.send_file(client, path)
             return
         
         for folder in folders:
             path = os.path.join(folder_path, folder)
             for item in files:
-                self.send_all_files(client, folder_path, item)
+                file_path = os.path.join(folder_path, item)
+                self.send_file(client, file_path)
             self.send_all_files_in_folder(client, path)
 
 
@@ -280,25 +280,21 @@ class UserPage(wx.Panel):
             else:
                 file_names.append(item)
 
-        files = ','.join(file_names)
-        folders = ','.join(folder_names)
-
-        if folders == '':
-            client.send("none".encode())
-            folders = []
-        else:
+        if len(folder_names) > 0:
+            folders = ','.join(folder_names)
             client.send(folders.encode())
-            folders = folders.split(',')
-
-        client.recv(1024)
-
-        if files == '':
-            client.send("none".encode())
-            files = []
         else:
+            client.send("none".encode())
+        
+        client.recv(1024)
+        
+        if len(file_names) > 0:
+            files = ','.join(file_names)
             client.send(files.encode())
-            files = files.split(',')
-        return folders, files
+        else:
+            client.send("none".encode())
+
+        return folder_names, file_names
 
 
     def sign_out(self, popup_win):
@@ -330,7 +326,7 @@ class UserPage(wx.Panel):
         client.send(self.username.encode())
         client.recv(1024)
         if len(self.current_folder) > 0:
-            path = ('\\').join(self.current_folder) + "\n "
+            path = os.path.join(*self.current_folder) + "\n "
             client.send(path.encode())
         else:
             client.send("\n".encode())
@@ -346,6 +342,7 @@ class UserPage(wx.Panel):
 
         if not folder in self.current_folder:
             if folder == 'SharedFiles':
+                self.add.Hide()
                 self.current_folder = []
                 self.path_buttons = self.path_buttons[0:1]
                 self.delete_unwanted_files(self.path_sizer)
@@ -365,31 +362,34 @@ class UserPage(wx.Panel):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
         name = btn.Name
-        client.send(f"Get {name}".encode()) #Check to see which button (file/folder) called the function and using that I sent the correct name for the server.
+        client.send(f"Get {name}".encode())
         client.recv(1024)
         client.send(self.username.encode())
         client.recv(1024)
 
         label = btn.Label
-        if len(self.current_folder) > 0: #Checks to see if I'm in a folder within the interface 
-            label = ('\\').join(self.current_folder) + '\\' + label #If so I append the path to the folder I'm currently in to the name of the file/folder
+        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
+        if len(self.current_folder) > 0:
+            label = os.path.join(*self.current_folder, label)
 
         client.send(label.encode())
-        label = btn.Label
 
-        full_path =  fr'C:\Users\roykr\Desktop\{label}'
         if name == "folder":
-            os.mkdir(full_path) #Makes a new folder in the desktop
+            os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
-            """Function that saves all the files and folders in the folder we created
-              on the desktop, while mantaining their order and structure"""
             return
         
         client.recv(1024)
-        self.recieve_file(client, full_path)
+        self.recieve_file(client, r'C:\Users\Pc2\Desktop', label)
 
 
     def share_files(self, filename):
+        client = socket.socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send(f"Share file|{self.username}".encode())
+        connected_emails = client.recv(1024).decode().split(',')
+        client.close()
+
         frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
         frame.Centre()
         frame.Show()
@@ -409,7 +409,7 @@ class UserPage(wx.Panel):
         panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
 
         email_input = wx.TextCtrl(panel, size=(250, 30))
-        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename), email_input)
+        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails), email_input)
         panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)
@@ -417,10 +417,10 @@ class UserPage(wx.Panel):
 
         panel.Layout()
         frame.Layout()
-        self.emails_match(None, panel, filename)
+        self.emails_match(None, panel, filename, connected_emails)
         
     
-    def emails_match(self, event, parent : wx.Window, file : str):
+    def emails_match(self, event, parent : wx.Window, file : str, connected_emails):
         sizer = parent.GetSizer()
         if event != None:
             prefix = event.GetString()
@@ -428,12 +428,6 @@ class UserPage(wx.Panel):
             prefix = ''
         self.delete_unwanted_files(sizer)
         if not prefix.endswith('@gmail.com'):
-            client = socket.socket()
-            client.connect((Utilities.get_pc_ip(), 8200))
-            client.send(f"Share file|{self.username}".encode())
-            connected_emails = client.recv(1024).decode().split(',')
-            client.close()
-
             for email in connected_emails:
                 if prefix in email:
                     button = wx.Button(parent, label=email)
@@ -476,7 +470,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         if len(self.current_folder) > 0:
-            file = os.path.join(('\\').join(self.current_folder), file)
+            file = os.path.join(*self.current_folder, file)
 
         client.send(file.encode())
         client.close()
@@ -486,14 +480,14 @@ class UserPage(wx.Panel):
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.get_all_files(client, full_path, item)
+                self.recieve_file(client, full_path, item)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.get_all_files(client, full_path, item)
+                self.recieve_file(client, full_path, item)
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -515,11 +509,6 @@ class UserPage(wx.Panel):
         return folders, files
 
 
-    def get_all_files(self, client, full_path, item):
-        path = os.path.join(full_path, item)
-        self.recieve_file(client, path)
-
-
     def remove_folder_or_files(self, event, btn):
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
@@ -536,18 +525,19 @@ class UserPage(wx.Panel):
             self.files.remove(label)
 
         if len(self.current_folder) > 0:
-            label = ('\\').join(self.current_folder) + '\\' + label
+            label = os.path.join(*self.current_folder, label)
         client.send(label.encode())
 
         self.print_files()
 
 
-    def recieve_file(self, client, full_path):
+    def recieve_file(self, client, path, file):
         client.send("Joules1".encode())
         data = client.recv(1024).decode()
         extension, length = data.split('|')[0], int(data.split('|')[-1])
 
         client.send("Joules1".encode())
+        full_path = os.path.join(path, file)
 
         file_content = client.recv(length)
         while len(file_content) < length:
