@@ -178,14 +178,21 @@ class UserPage(wx.Panel):
             client.send(content)
 
 
-    def open_file_dialoge(self, event):
-        file_dialog = wx.FileDialog(self, "Select a file")
-        if file_dialog.ShowModal() != wx.ID_OK:
-            return
-        
+    def open_file_or_folder_dialoge(self, event, file_or_folder):
+        if file_or_folder == 'file':
+            file_dialog = wx.FileDialog(self, "Select a file")
+            if file_dialog.ShowModal() != wx.ID_OK:
+                return
+            full_path = file_dialog.GetPath()
+        else:
+            folder_dialog = wx.DirDialog(self, "Select a folder")
+            if folder_dialog.ShowModal() != wx.ID_OK:
+                return
+            full_path = folder_dialog.GetPath()
+
         client = socket.socket()
         client.connect((Utilities.get_pc_ip(), 8200))
-        client.send("Upload file".encode())
+        client.send(f"Upload {file_or_folder}".encode())
 
         public_key_pem = client.recv(2048)
         public_key = serialization.load_pem_public_key(public_key_pem)
@@ -193,8 +200,6 @@ class UserPage(wx.Panel):
         encrypted_data = Utilities.encrypt(self.username.encode(), public_key)
 
         client.sendall(encrypted_data)
-        
-        full_path = file_dialog.GetPath()
 
         file_name = full_path.split("\\")[-1]
         client.recv(1024)
@@ -206,52 +211,25 @@ class UserPage(wx.Panel):
         client.sendall(encrypted_data)
         file_exists = client.recv(1024).decode()
         if file_exists == 'exists!':
-            if not self.show_dialog('File'):
+            dialog = file_or_folder[0].upper() + file_or_folder[1:]
+            print(dialog)
+            if not self.show_dialog(dialog):
                 return
-            client.send(f'Replace file'.encode())
+            client.send(f'Replace {file_or_folder}'.encode())
             client.recv(1024)
 
-            self.files.remove(file_name)
-        
-        self.send_file(client, full_path)
-        
-        self.files.append(file_name)
-        self.print_files()
+        if file_or_folder == 'file':
+            if file_name in self.files:
+                self.files.remove(file_name)
+            self.files.append(file_name)
 
+            self.send_file(client, full_path)
+        else:
+            if file_name in self.folders:
+                self.folders.remove(file_name)
+            self.folders.append(file_name)
 
-    def open_dir_dialoge(self, event):
-        folder_dialog = wx.DirDialog(self, "Select a folder")
-        if folder_dialog.ShowModal() != wx.ID_OK:
-            return
-        
-        client = socket.socket()
-        client.connect((Utilities.get_pc_ip(), 8200))
-        client.send("Upload folder".encode())
-
-        client.recv(1024)
-        client.send(self.username.encode())
-        client.recv(1024)
-
-        folder_path = folder_dialog.GetPath()
-
-        folder_name = folder_path.split("\\")[-1]
-        if len(self.current_folder) > 0:
-            folder_name = os.path.join(*self.current_folder, folder_name)
-
-        client.send(folder_name.encode())
-        folder_name = folder_path.split("\\")[-1]
-        folder_exists = client.recv(1024).decode()
-        if folder_exists == 'exists!':
-            if not self.show_dialog('Folder'):
-                return
-            client.send(f'Replace folder'.encode())
-            client.recv(1024)
-
-            self.folders.remove(folder_name)
-
-        self.send_all_files_in_folder(client, folder_path)
-
-        self.folders.append(folder_name)
+            self.send_all_files_in_folder(client, full_path)
         self.print_files()
 
 
@@ -605,9 +583,9 @@ class UserPage(wx.Panel):
         for button_name in button_list:
             button = wx.Button(panel, label=button_name)
             if button_name == "Upload file":
-                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_file_dialoge(event), button)
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_file_or_folder_dialoge(event, 'file'), button)
             elif button_name == "Upload folder":
-                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_dir_dialoge(event), button)
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.open_file_or_folder_dialoge(event, 'folder'), button)
             elif button_name == "Download":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
             elif button_name == "Share":

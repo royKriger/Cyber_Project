@@ -78,12 +78,9 @@ class Server():
                             self.remove_file(sock)
                             all_sock.remove(sock)
                             sock.close()
-                        elif request == "Upload file":
-                            self.handle_file(sock)
-                            all_sock.remove(sock)
-                            sock.close()
-                        elif request == "Upload folder":
-                            self.handle_folder(sock)
+                        elif request == "Upload file" or request == "Upload folder":
+                            file_or_folder = request.split(' ')[-1]
+                            self.handle_file_or_folder(sock, file_or_folder)
                             all_sock.remove(sock)
                             sock.close()
                     except TimeoutError:
@@ -200,7 +197,7 @@ class Server():
         conn.close()
 
 
-    def handle_file(self, client : socket.socket):
+    def handle_file_or_folder(self, client : socket.socket, file_or_folder : str):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
 
@@ -220,9 +217,9 @@ class Server():
                 label=None
             )
         )
+        username = decrypted_bytes.decode()
         client.send("Joules^2".encode())
 
-        username = decrypted_bytes.decode()
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
 
@@ -244,53 +241,29 @@ class Server():
             file_name = file_name.split('\\')[-1]
             full_path = os.path.join(full_path, path)
 
-        if self.if_item_exists_dir(file_name, full_path, False):
+        is_file = not file_or_folder == 'file'
+        if self.if_item_exists_dir(file_name, full_path, is_file):
             client.send('exists!'.encode())
             client.settimeout(None)
-            replace = client.recv(1024).decode() == "Replace file"
+            replace = client.recv(1024).decode() == f"Replace {file_or_folder}"
             if not replace:
                 return
             client.settimeout(self.timeout)
-            os.remove(os.path.join(full_path, file_name))
 
-        self.recieve_file(client, full_path, file_name)
+            if not is_file:
+                os.remove(os.path.join(full_path, file_name))
+            else:
+                shutil.rmtree(os.path.join(full_path, file_name))
 
-        conn.commit()
-        conn.close()
+        if is_file:
+            full_path = os.path.join(full_path, file_name)
+            os.mkdir(full_path)
 
+            client.send('doesnt exist'.encode())
+            self.recieve_all_files_and_folders(client, full_path)
 
-    def handle_folder(self, client : socket.socket):
-        conn = sqlite3.connect(self.database)
-        conn_cur = conn.cursor()
-
-        client.send("Joules^2".encode())
-        username = client.recv(1024).decode()
-        client.send("Joules^2".encode())
-
-        conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
-        email = conn_cur.fetchone()[0].split('@')[0]
-
-        folder_name = client.recv(1024).decode()
-        full_path = os.path.join(self.path, email)
-
-        if '\\' in folder_name:
-            path = '\\'.join(folder_name.split('\\')[:-1])
-            folder_name = folder_name.split('\\')[-1]
-            full_path = os.path.join(full_path, path)
-
-        if self.if_item_exists_dir(folder_name, full_path, True):
-            client.send('exists!'.encode())
-            client.settimeout(None)
-            replace = client.recv(1024).decode() == "Replace folder"
-            if not replace:
-                return
-            client.settimeout(self.timeout)
-            shutil.rmtree(os.path.join(full_path, folder_name))
-        client.send('doesnt exist'.encode())
-
-        full_path = os.path.join(full_path, folder_name)
-        os.mkdir(full_path)
-        self.recieve_all_files_and_folders(client, full_path)
+        else:
+            self.recieve_file(client, full_path, file_name)
 
         conn.commit()
         conn.close()
@@ -621,7 +594,7 @@ class Server():
         else:
             if self.is_txt(path):
                 self.text_files.remove(path)
-            else:
+            elif self.is_image(path):
                 self.bytes_files.remove(path)
             os.remove(path)
 
