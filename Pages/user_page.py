@@ -257,9 +257,9 @@ class UserPage(wx.Panel):
 
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
-        client.recv(1024)
         if not folders:
             for item in files:
+                client.recv(1024)
                 file_path = os.path.join(folder_path, item)
                 self.send_file(client, file_path)
             return
@@ -267,8 +267,10 @@ class UserPage(wx.Panel):
         for folder in folders:
             path = os.path.join(folder_path, folder)
             for item in files:
+                client.recv(1024)
                 file_path = os.path.join(folder_path, item)
                 self.send_file(client, file_path)
+            client.recv(1024)
             self.send_all_files_in_folder(client, path)
 
 
@@ -286,17 +288,16 @@ class UserPage(wx.Panel):
 
         if len(folder_names) > 0:
             folders = ','.join(folder_names)
-            client.send(folders.encode())
         else:
-            client.send("none".encode())
-        
-        client.recv(1024)
-        
+            folders = 'none'
+                    
         if len(file_names) > 0:
             files = ','.join(file_names)
-            client.send(files.encode())
         else:
-            client.send("none".encode())
+            files = 'none'
+
+        data = f"{folders}|{files}"
+        client.send(data.encode())
 
         return folder_names, file_names
 
@@ -372,19 +373,20 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        full_path =  fr'C:\Users\Pc2\Desktop\{label}'
+        full_path =  r'C:\Users\roykr\Desktop'
         if len(self.current_folder) > 0:
             label = os.path.join(*self.current_folder, label)
 
         client.send(label.encode())
+        label = btn.Label
 
         if name == "folder":
+            full_path = os.path.join(full_path, label)
             os.mkdir(full_path)
             self.recieve_all_files_and_folders(client, full_path)
             return
         
-        client.recv(1024)
-        self.recieve_file(client, r'C:\Users\Pc2\Desktop', label)
+        self.recieve_file(client, full_path, label)
 
 
     def share_files(self, filename):
@@ -500,6 +502,7 @@ class UserPage(wx.Panel):
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
+                client.send('Joules^3'.encode())
                 self.recieve_file(client, full_path, item)
             return
 
@@ -507,14 +510,14 @@ class UserPage(wx.Panel):
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
+                client.send('Joules^3'.encode())
                 self.recieve_file(client, full_path, item)
+            client.send('Joules^3'.encode())
             self.recieve_all_files_and_folders(client, path)
 
 
     def get_all_filenames(self, client):
-        folders = client.recv(1024).decode()
-        client.send("Joules".encode())
-        files = client.recv(1024).decode()
+        folders, files = client.recv(1024).decode().split('|')
 
         if files != "none":
             files = files.split(',')
@@ -552,7 +555,6 @@ class UserPage(wx.Panel):
 
 
     def recieve_file(self, client, path, file):
-        client.send("Joules1".encode())
         data = client.recv(1024).decode()
         extension, length = data.split('|')[0], int(data.split('|')[-1])
 

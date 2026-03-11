@@ -253,7 +253,7 @@ class Server():
             client.settimeout(self.timeout)
             os.remove(os.path.join(full_path, file_name))
 
-        self.get_file(client, full_path, file_name)
+        self.recieve_file(client, full_path, file_name)
 
         conn.commit()
         conn.close()
@@ -431,21 +431,20 @@ class Server():
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.get_file(client, full_path, item)
+                self.recieve_file(client, full_path, item)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.get_file(client, full_path, item)
+                self.recieve_file(client, full_path, item)
+            client.send('Joules^3'.encode())
             self.recieve_all_files_and_folders(client, path)
 
 
     def get_all_filenames(self, client):
-        folders = client.recv(1024).decode()
-        client.send("Joules".encode())
-        files = client.recv(1024).decode()
+        folders, files = client.recv(1024).decode().split('|')
 
         if files != "none":
             files = files.split(',')
@@ -460,7 +459,7 @@ class Server():
         return folders, files
 
 
-    def get_file(self, client, full_path, file):
+    def recieve_file(self, client, full_path, file):
         client.send("Joules".encode())
         data = client.recv(1024).decode()
         try:
@@ -555,13 +554,13 @@ class Server():
             client.recv(1024)
             
             client.send(content)
-        
+
     
     def send_all_files_in_folder(self, client, folder_path):
         folders, files = self.get_and_send_folders_and_files(client, folder_path)
-        client.recv(1024)
         if not folders:
             for item in files:
+                client.recv(1024)
                 file_path = os.path.join(folder_path, item)
                 self.send_file(client, file_path)
             return
@@ -569,11 +568,13 @@ class Server():
         for folder in folders:
             path = os.path.join(folder_path, folder)
             for item in files:
+                client.recv(1024)
                 file_path = os.path.join(folder_path, item)
                 self.send_file(client, file_path)
+            client.recv(1024)
             self.send_all_files_in_folder(client, path)
 
-    
+
     def get_and_send_folders_and_files(self, client, folder_path):
         if not os.path.exists(folder_path):
             os.mkdir(folder_path)
@@ -591,17 +592,16 @@ class Server():
         if client:
             if len(folder_names) > 0:
                 folders = ','.join(folder_names)
-                client.send(folders.encode())
             else:
-                client.send("none".encode())
-            
-            client.recv(1024)
-            
+                folders = 'none'
+                        
             if len(file_names) > 0:
                 files = ','.join(file_names)
-                client.send(files.encode())
             else:
-                client.send("none".encode())
+                files = 'none'
+
+        data = f"{folders}|{files}"
+        client.send(data.encode())
 
         return folder_names, file_names
 
