@@ -351,7 +351,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        full_path =  r'C:\Users\roykr\Desktop'
+        full_path =  r'C:\Users\Roy\Desktop'
         if len(self.current_folder) > 0:
             label = os.path.join(*self.current_folder, label)
 
@@ -379,7 +379,6 @@ class UserPage(wx.Panel):
         frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
         frame.Centre()
         frame.Show()
-        #frame.Bind(wx.EVT_KILL_FOCUS, lambda event: frame.Destroy())
 
         panel = wx.Panel(frame, size=(525, 300))
         panel.SetBackgroundColour(wx.Colour(245, 245, 246))

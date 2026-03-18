@@ -83,6 +83,8 @@ class Server():
                             self.handle_file_or_folder(sock, file_or_folder)
                             all_sock.remove(sock)
                             sock.close()
+                        elif request == "Update file":
+                            print('WORKS!')
                     except TimeoutError:
                         all_sock.remove(sock)
                         sock.close()
