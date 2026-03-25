@@ -14,6 +14,7 @@ class UserPage(wx.Panel):
         self.parent = parent
         self.username = username
         self.current_folder = []
+        self.sort_by = 'Name'
 
         self.folders, self.files = self.get_user_filenames_from_server()
         
@@ -49,7 +50,7 @@ class UserPage(wx.Panel):
 
         self.path_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.path_label = wx.StaticText(self.main_panel, label=f"Path:")
+        self.path_label = wx.StaticText(self.main_panel, label="Path:")
         font = wx.Font(20, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
         self.path_label.SetFont(font)
         self.path_sizer.Add(self.path_label, 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -57,11 +58,19 @@ class UserPage(wx.Panel):
         self.path_buttons = []
 
         button = wx.Button(self.main_panel, label=self.username, size=(70, 40))
-        self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
+        self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_current_folder_contents(event), button)
         self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         self.path_buttons.append(button)
 
         self.main_sizer.Add(self.path_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
+
+        self.sort_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.sort_files = wx.Button(self.main_panel, label='Sort by:', size=(75, 40))
+        self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Name", "Date", 'Last modified']), self.sort_files)
+        self.sort_sizer.Add(self.sort_files, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        self.main_sizer.Add(self.sort_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
         
         self.print_files()
 
@@ -604,7 +613,7 @@ class UserPage(wx.Panel):
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.switch_account(popup, 'login'), button)
             elif button_name.endswith('@gmail.com'):
                 panel.Bind(wx.EVT_BUTTON, lambda evt, account=button_name: self.delete_account(father_popup, popup, account), button)
-            sizer.Add(button, 0, wx.ALL, 10)
+            sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 10)
         
         panel.SetSizer(sizer)   
         sizer.Fit(panel)
@@ -613,7 +622,7 @@ class UserPage(wx.Panel):
         if btn.Name == "Add":
             popup.Position(btn_pos, (100, -55))
         elif btn.Name == "User":
-            popup.Position(btn_pos, (-112, -55))
+            popup.Position(btn_pos, (-158, -55))
         else:
             popup.Position(btn_pos, (-6, 0))
         popup.Popup()
@@ -660,8 +669,8 @@ class UserPage(wx.Panel):
 
 
     def delete_unwanted_files(self, sizer: wx.BoxSizer, stop: int=0) -> None:
-        while sizer.GetItemCount() > stop + 2:
-            item = sizer.GetItem(stop + 2)
+        while sizer.GetItemCount() > stop + 3:
+            item = sizer.GetItem(stop + 3)
 
             if item.IsSizer():
                 temp_sizer = item.GetSizer()

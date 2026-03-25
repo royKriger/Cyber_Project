@@ -8,7 +8,7 @@ def main():
     with open(file_to_copy, 'r') as file:
         script = file.read()
 
-    parent_path = r'C:\Users\Roy\Desktop'
+    parent_path = r'C:\Users\roykr\Desktop'
     filepath = os.path.join(parent_path, file_to_copy)
 
     if os.path.isfile(filepath):

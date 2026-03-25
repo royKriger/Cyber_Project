@@ -24,7 +24,7 @@ class MyHandler(FileSystemEventHandler):
 
 if __name__ == '__main__':
     ip = '127.0.0.1'
-    path = r'C:\Users\Roy\Desktop\Lidor.txt'
+    path = r'C:\Users\roykr\Desktop'
     folder = '\\'.join(path.split('\\')[:-1])
 
     event_handler = MyHandler(path, ip, '')
