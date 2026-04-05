@@ -14,7 +14,6 @@ class UserPage(wx.Panel):
         self.parent = parent
         self.username = username
         self.current_folder = []
-        self.sort_by = 'Name'
 
         self.folders, self.files = self.get_user_filenames_from_server()
         
@@ -63,14 +62,6 @@ class UserPage(wx.Panel):
         self.path_buttons.append(button)
 
         self.main_sizer.Add(self.path_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
-
-        self.sort_sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.sort_files = wx.Button(self.main_panel, label='Sort by:', size=(75, 40))
-        self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Name", "Date", 'Last modified']), self.sort_files)
-        self.sort_sizer.Add(self.sort_files, 0, wx.ALIGN_CENTER | wx.ALL, 5)
-
-        self.main_sizer.Add(self.sort_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 15)
         
         self.print_files()
 
@@ -80,13 +71,19 @@ class UserPage(wx.Panel):
         self.Bind(wx.EVT_TIMER, self.OnSingleClick)
 
         right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+
         icon_path = r"Assets\User_logo.jpg"
         img = wx.Image(icon_path, wx.BITMAP_TYPE_ANY)
-        img = img.Scale(50, 50, wx.IMAGE_QUALITY_HIGH)
+        img = img.Scale(60, 60, wx.IMAGE_QUALITY_HIGH)
         logo_bitmap = wx.Bitmap(img)
         self.logo_button = wx.BitmapButton(self, wx.ID_ANY, logo_bitmap, name='User')
         self.logo_button.Bind(wx.EVT_BUTTON, lambda event : self.show_popup(event, ["Add account", "Sign out"]))
-        right_sidebar_sizer.Add(self.logo_button, 0, wx.RIGHT | wx.TOP, 10)
+        right_sidebar_sizer.Add(self.logo_button, 0, wx.ALIGN_CENTER | wx.RIGHT | wx.TOP, 10)
+
+        self.auto_save_file = wx.Button(self, label='Auto save file', size=(100, 60))
+        self.Bind(wx.EVT_BUTTON, lambda e: self.dialog(), self.auto_save_file)
+        right_sidebar_sizer.Add(self.auto_save_file, 0, wx.ALIGN_CENTER | wx.RIGHT | wx.TOP, 10)
+
         self.sizer.Add(right_sidebar_sizer, 0, wx.LEFT, 10)
 
         self.SetSizer(self.sizer)
@@ -120,7 +117,7 @@ class UserPage(wx.Panel):
             container_sizer[i] = sizer
             sizer = wx.BoxSizer(wx.HORIZONTAL)
             sizers.append(sizer)
-            
+
         for i in range(len(self.folders)):
             if sizers[0].ItemCount % self.row_size == 0 and sizers[0].ItemCount != 0:
                 container_sizer[0].Add(sizers[0], 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -376,16 +373,18 @@ class UserPage(wx.Panel):
         self.recieve_file(client, full_path, label)
 
 
-    def share_files(self, filename):
-        client = socket.socket()
-        client.connect((Utilities.get_pc_ip(), 8200))
-        client.send(f"Share file|{self.username}".encode())
-        connected_emails = client.recv(1024).decode().split(',')
-        client.send('Joules'.encode())
-        times_shared = client.recv(1024).decode().split(',')
-        client.close()
-
-        frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
+    def dialog(self, filename=''):
+        if filename != '':
+            client = socket.socket()
+            client.connect((Utilities.get_pc_ip(), 8200))
+            client.send(f"Share file|{self.username}".encode())
+            connected_emails = client.recv(1024).decode().split(',')
+            client.send('Joules'.encode())
+            times_shared = client.recv(1024).decode().split(',')
+            client.close()
+            frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
+        else:
+            frame = wx.Frame(self.parent, title='Auto save file', size=(525, 300))
         frame.Centre()
         frame.Show()
 
@@ -397,23 +396,36 @@ class UserPage(wx.Panel):
 
         panel_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        label = wx.StaticText(panel, label='Who do you want to share your files with?')
+        if filename != '':
+            label = wx.StaticText(panel, label='Who do you want to share your files with?')
+        else:
+            label = wx.StaticText(panel, label='Enter a path of a file you want auto saved')
         font = wx.Font(15, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
         label.SetFont(font)
 
         panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
 
-        email_input = wx.TextCtrl(panel, size=(250, 30))
-        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails, times_shared), email_input)
-        panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        if filename != '':
+            email_input = wx.TextCtrl(panel, size=(250, 30))
+            panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails, times_shared), email_input)
+            panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+        else:
+            path_input = wx.TextCtrl(panel, size=(200, 30))
+            panel_sizer.Add(path_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+
+            enter_path = wx.Button(panel, label='Enter path')
+            #panel.Bind(wx.EVT_BUTTON, lambda: deploy_algo())
+            panel_sizer.Add(enter_path, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)
         frame.SetSizer(frame_sizer)
 
         panel.Layout()
         frame.Layout()
-        self.emails_match(None, panel, filename, connected_emails, times_shared)
-        
+
+        if filename != '':
+            self.emails_match(None, panel, filename, connected_emails, times_shared)
+    
     
     def emails_match(self, event, parent : wx.Window, file : str, connected_emails, times_shared):
         sizer = parent.GetSizer()
@@ -597,7 +609,7 @@ class UserPage(wx.Panel):
             elif button_name == "Download":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.download_folder_or_files(event, btn), button)
             elif button_name == "Share":
-                panel.Bind(wx.EVT_BUTTON, lambda event: self.share_files(filename), button)
+                panel.Bind(wx.EVT_BUTTON, lambda event: self.dialog(filename), button)
             elif button_name == "Delete":
                 panel.Bind(wx.EVT_BUTTON, lambda event: self.remove_folder_or_files(event, btn), button)
             elif button_name == "Sign out":
@@ -669,8 +681,8 @@ class UserPage(wx.Panel):
 
 
     def delete_unwanted_files(self, sizer: wx.BoxSizer, stop: int=0) -> None:
-        while sizer.GetItemCount() > stop + 3:
-            item = sizer.GetItem(stop + 3)
+        while sizer.GetItemCount() > stop + 2:
+            item = sizer.GetItem(stop + 2)
 
             if item.IsSizer():
                 temp_sizer = item.GetSizer()
