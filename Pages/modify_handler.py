@@ -1,6 +1,7 @@
 import os
 import time
 import socket
+import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -24,8 +25,8 @@ class MyHandler(FileSystemEventHandler):
 
 if __name__ == '__main__':
     ip = '127.0.0.1'
-    path = r'C:\Users\roykr\Desktop'
-    folder = '\\'.join(path.split('\\')[:-1])
+    path = sys.argv[1]
+    folder = os.path.dirname(path)
 
     event_handler = MyHandler(path, ip, '')
     observer = Observer()
@@ -43,3 +44,4 @@ if __name__ == '__main__':
     observer.stop()
     observer.join()
     print('Reached the end of the script')
+    os.remove(sys.argv[0])

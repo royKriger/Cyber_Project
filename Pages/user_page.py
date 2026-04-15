@@ -2,6 +2,7 @@ import wx
 import os
 import json
 import socket
+import deploy_algo
 from utilities import Utilities
 from login_page import LoginPage
 from cryptography.hazmat.primitives import serialization
@@ -414,7 +415,10 @@ class UserPage(wx.Panel):
             panel_sizer.Add(path_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
             enter_path = wx.Button(panel, label='Enter path')
-            #panel.Bind(wx.EVT_BUTTON, lambda: deploy_algo())
+            try:
+                panel.Bind(wx.EVT_BUTTON, lambda e: self.deploy_algo_script(path_input.GetLineText(lineNo=0), frame))
+            except Exception as e:
+                print(e)
             panel_sizer.Add(enter_path, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)
@@ -426,6 +430,19 @@ class UserPage(wx.Panel):
         if filename != '':
             self.emails_match(None, panel, filename, connected_emails, times_shared)
     
+
+    def deploy_algo_script(self, path, frame_to_delete : wx.Frame):
+        accepted = False
+        try:
+            deploy_algo.main(path)
+        except Exception as e:
+            print(e)
+        else:
+            accepted = True
+
+        if accepted:
+            frame_to_delete.Destroy()
+
     
     def emails_match(self, event, parent : wx.Window, file : str, connected_emails, times_shared):
         sizer = parent.GetSizer()
