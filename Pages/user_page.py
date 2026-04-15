@@ -30,11 +30,21 @@ class UserPage(wx.Panel):
         self.logo = wx.StaticBitmap(self, wx.ID_ANY, bitmap)
         left_sidebar_sizer.Add(self.logo, 0, wx.ALL, 10)
         
-        self.add = wx.Button(self, label="+ Add", size=(100, 60), name="Add")
+        self.add = wx.Button(self, label="+ Add", size=(100, 60), name="Add", style=wx.BORDER_NONE)
+        self.add.SetBackgroundColour((213, 250, 255))
+            
+        self.add.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=self.add: self.on_button_hover(b, True, 1))
+        self.add.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=self.add: self.on_button_hover(b, False, 2))
+
         self.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Upload file", "Upload folder"]), self.add)
         left_sidebar_sizer.Add(self.add, 0, wx.LEFT, 5)
 
-        self.share = wx.Button(self, label="Files Shared \n with Me", size=(100, 60), name="SharedFiles")
+        self.share = wx.Button(self, label="Files Shared \n with Me", size=(100, 60), name="SharedFiles", style=wx.BORDER_NONE)
+        self.share.SetBackgroundColour((213, 250, 255))
+            
+        self.share.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=self.share: self.on_button_hover(b, True, 1))
+        self.share.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=self.share: self.on_button_hover(b, False, 2))
+
         self.Bind(wx.EVT_BUTTON, lambda event: self.on_dclick_folder(event), self.share)
         left_sidebar_sizer.Add(self.share, 0, wx.LEFT | wx.TOP, 5)
         self.sizer.Add(left_sidebar_sizer, 0, wx.LEFT, 10)
@@ -57,7 +67,12 @@ class UserPage(wx.Panel):
 
         self.path_buttons = []
 
-        button = wx.Button(self.main_panel, label=self.username, size=(70, 40))
+        button = wx.Button(self.main_panel, label=self.username, size=(70, 40), style=wx.BORDER_NONE)
+        button.SetBackgroundColour((255, 244, 206))
+            
+        button.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=button: self.on_button_hover(b, True, 3))
+        button.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=button: self.on_button_hover(b, False, 4))
+
         self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_current_folder_contents(event), button)
         self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         self.path_buttons.append(button)
@@ -81,7 +96,12 @@ class UserPage(wx.Panel):
         self.logo_button.Bind(wx.EVT_BUTTON, lambda event : self.show_popup(event, ["Add account", "Sign out"]))
         right_sidebar_sizer.Add(self.logo_button, 0, wx.ALIGN_CENTER | wx.RIGHT | wx.TOP, 10)
 
-        self.auto_save_file = wx.Button(self, label='Auto save file', size=(100, 60))
+        self.auto_save_file = wx.Button(self, label='Auto save file', size=(100, 60), style=wx.BORDER_NONE)
+        self.auto_save_file.SetBackgroundColour((213, 250, 255))
+            
+        self.auto_save_file.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=self.auto_save_file: self.on_button_hover(b, True, 1))
+        self.auto_save_file.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=self.auto_save_file: self.on_button_hover(b, False, 2))
+
         self.Bind(wx.EVT_BUTTON, lambda e: self.dialog(), self.auto_save_file)
         right_sidebar_sizer.Add(self.auto_save_file, 0, wx.ALIGN_CENTER | wx.RIGHT | wx.TOP, 10)
 
@@ -110,27 +130,45 @@ class UserPage(wx.Panel):
         self.delete_unwanted_files(self.main_sizer)
         
         container_sizer = ["Folders:", "Files:", "Zips:"]
+        color_list = [(0, 122, 255), (40, 167, 69), (255, 153, 0)]
         sizers = []
 
         for i in range(len(container_sizer)):
             sizer = wx.BoxSizer(wx.VERTICAL)
-            sizer.Add(wx.StaticText(self.main_panel, wx.ID_ANY, container_sizer[i]), 0, wx.ALIGN_CENTER | wx.ALL, 5)
+            text = wx.StaticText(self.main_panel, wx.ID_ANY, container_sizer[i])
+            text.SetFont(wx.Font(14, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
+            text.SetForegroundColour(color_list[i])
+            sizer.Add(text, 0, wx.ALIGN_CENTER | wx.ALL, 5)
             container_sizer[i] = sizer
             sizer = wx.BoxSizer(wx.HORIZONTAL)
             sizers.append(sizer)
+
+        btn_color = (21, 81, 170)
 
         for i in range(len(self.folders)):
             if sizers[0].ItemCount % self.row_size == 0 and sizers[0].ItemCount != 0:
                 container_sizer[0].Add(sizers[0], 0, wx.ALIGN_CENTER | wx.ALL, 5)
                 sizers[0] = wx.BoxSizer(wx.HORIZONTAL)
 
-            button = wx.Button(self.main_panel, wx.ID_ANY, label=self.folders[i], name="folder")
+            button = wx.Button(self.main_panel, wx.ID_ANY, label=self.folders[i], name="folder", style=wx.BORDER_NONE)
+            button.SetBackgroundColour(btn_color)
+            button.SetForegroundColour((255, 255, 255))
+            
+            button.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=button: self.on_button_hover(b, True, 1))
+            button.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=button: self.on_button_hover(b, False, 0))
+
             button.Bind(wx.EVT_LEFT_DCLICK, lambda event: self.on_dclick_folder(event))
             self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Share", "Delete"]), button)
             sizers[0].Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         for i in range(len(self.files)):
-            button = wx.Button(self.main_panel, wx.ID_ANY, label=self.files[i], name="file")
+            button = wx.Button(self.main_panel, wx.ID_ANY, label=self.files[i], name="file", style=wx.BORDER_NONE)
+            button.SetBackgroundColour(btn_color)
+            button.SetForegroundColour((255, 255, 255))
+            
+            button.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=button: self.on_button_hover(b, True, 1))
+            button.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=button: self.on_button_hover(b, False, 0))
+
             self.main_panel.Bind(wx.EVT_BUTTON, lambda event: self.show_popup(event, ["Download", "Share", "Delete"]), button)
             
             if self.files[i].endswith('.zip'):
@@ -151,10 +189,8 @@ class UserPage(wx.Panel):
         for i in range(len(sizers)):
             if container_sizer[i].GetItemCount() > 1 and sizers[i].GetItemCount() > 0:
                 self.main_sizer.Add(container_sizer[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
-
             elif container_sizer[i].GetItemCount() > 2:
                 self.main_sizer.Add(container_sizer[i], 0, wx.ALIGN_CENTER | wx.ALL, 10)
-
             else:
                 for item in container_sizer[i].GetChildren():
                     widget = item.GetWindow()
@@ -163,6 +199,13 @@ class UserPage(wx.Panel):
                     container_sizer[i].Clear(delete_windows=True)
 
         self.Layout()
+
+
+    def on_button_hover(self, button: wx.Button, hover: bool, index: int):
+        color = [(21, 81, 170), (52, 152, 219), (213, 250, 255), (255, 229, 214), (255, 244, 206)]
+        
+        button.SetBackgroundColour(color[index] if hover else color[index])
+        button.Refresh()
 
 
     def send_file(self, client, full_path: str):
@@ -338,7 +381,12 @@ class UserPage(wx.Panel):
                 self.delete_unwanted_files(self.path_sizer)
 
             self.current_folder.append(folder)
-            button = wx.Button(self.main_panel, label=folder, size=(70, 40))
+            button = wx.Button(self.main_panel, label=folder, size=(70, 40), style=wx.BORDER_NONE)
+            button.SetBackgroundColour((255, 244, 206))
+            
+            button.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=button: self.on_button_hover(b, True, 3))
+            button.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=button: self.on_button_hover(b, False, 4))
+
             self.main_panel.Bind(wx.EVT_BUTTON,lambda event: self.show_current_folder_contents(event), button)
             self.path_sizer.Add(button, 0, wx.ALIGN_CENTER | wx.ALL, 5)
             self.path_buttons.append(button)

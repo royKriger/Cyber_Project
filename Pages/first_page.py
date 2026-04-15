@@ -6,9 +6,13 @@ from register_page import RegisterPage
 class FirstPage(wx.Panel):
     def __init__(self, parent, size):
         super(FirstPage, self).__init__(parent, size=size)
-        
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         
+        self.bg_bitmap = wx.Bitmap(r"Assets\backgournd_image.jpg")
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_SIZE, lambda e: (self.Refresh(), e.Skip()))
+
         self.admin = wx.Button(self, label="User Page", size=(100, 60))
         self.Bind(wx.EVT_BUTTON, lambda event: parent.show_user_frame(self, "Admin"), self.admin)
         self.sizer.Add(self.admin, 0, wx.ALIGN_LEFT, 5)
@@ -32,3 +36,9 @@ class FirstPage(wx.Panel):
         self.sizer.Add(buttons_sizer, 0, wx.ALIGN_CENTER)
         self.SetSizer(self.sizer)
         self.Layout()
+
+
+    def on_paint(self, event):
+        dc = wx.AutoBufferedPaintDC(self)
+        dc.Clear()
+        dc.DrawBitmap(self.bg_bitmap, 0, 0)
