@@ -334,16 +334,12 @@ class UserPage(wx.Panel):
         popup_win.Hide()
         if os.path.isfile('authToken.json'):
             os.remove('authToken.json')
-        if os.path.isfile('authToken.txt'):
-            os.remove('authToken.txt')
         self.current_folder = []
         self.parent.show_frame(cur=self)
 
 
     def switch_account(self, popup_win, action):
         popup_win.Hide()
-        if os.path.isfile('authToken.txt'):
-            os.remove('authToken.txt')
         if action == 'login':
             self.parent.show_frame(LoginPage, self)
         else:
@@ -659,11 +655,6 @@ class UserPage(wx.Panel):
                         panel.Bind(wx.EVT_BUTTON, lambda event, e=email: self.switch_account(popup, e), button)
                         sizer.Add(button, 0, wx.ALL, 10)
                     sizer.Add(wx.StaticLine(panel, style=wx.LI_HORIZONTAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-            else:
-                with open('authToken.txt', 'r') as file:
-                    email = file.read()
-                button = wx.Button(panel, label=email)
-                sizer.Add(button, 0, wx.ALL, 10)
 
         for button_name in button_list:
             button = wx.Button(panel, label=button_name)
@@ -687,6 +678,8 @@ class UserPage(wx.Panel):
                         sizer.Add(one, 0, wx.ALL, 10)
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.sign_out(popup), button)
             elif button_name == "Add account":
+                if not os.path.isfile('authToken.json'):
+                    button.SetLabel('Switch account')
                 panel.Bind(wx.EVT_BUTTON, lambda evt: self.switch_account(popup, 'login'), button)
             elif button_name.endswith('@gmail.com'):
                 panel.Bind(wx.EVT_BUTTON, lambda evt, account=button_name: self.delete_account(father_popup, popup, account), button)

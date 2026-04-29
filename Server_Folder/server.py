@@ -605,6 +605,7 @@ class Server():
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
         username = client.recv(1024).decode()
+        print(username)
         
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0]
