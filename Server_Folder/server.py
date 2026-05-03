@@ -274,21 +274,26 @@ class Server():
     def share_file(self, client : socket.socket, username):
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
-               
+
         if username != '':
             conn_cur.execute("SELECT Emails FROM Connected WHERE Users = ?", (username, ))
             cur = conn_cur.fetchall()
             connected_emails = []
             for email in cur:
                 if not email[0].startswith('admin'):
-                    connected_emails.append(email[0]) 
-            client.send(','.join(connected_emails).encode())
+                    connected_emails.append(email[0])
+            if len(connected_emails) > 0:
+                client.send(','.join(connected_emails).encode())
+            else:
+                print(connected_emails)
+                client.send('No connected emails!'.encode())
+                return
             client.recv(1024)
             conn_cur.execute("SELECT Times_Shared FROM Connected WHERE Users = ?", (username, ))
             cur = conn_cur.fetchall()
             times_shared = []
             for time in cur:
-                times_shared.append(str(time[0])) 
+                times_shared.append(str(time[0]))
             client.send(','.join(times_shared).encode())
             return
         
@@ -605,7 +610,6 @@ class Server():
         conn = sqlite3.connect(self.database)
         conn_cur = conn.cursor()
         username = client.recv(1024).decode()
-        print(username)
         
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0]

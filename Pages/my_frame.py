@@ -15,7 +15,7 @@ class MyFrame(wx.Frame):
                                       pos, size, style, name)
         self.size = size
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        
+
         self.pages = {}
 
         for F in (FirstPage, LoginPage, RegisterPage):
@@ -38,7 +38,7 @@ class MyFrame(wx.Frame):
 
     def show_frame(self, page=FirstPage, cur=None):
         if page == FirstPage and UserPage in self.pages:
-            frame = FirstPage(self, self.size)
+            frame = FirstPage(self, self.size, self.username)
             self.sizer.Replace(self.pages[page], frame)
             self.pages[page].Destroy()
             self.pages[page] = frame
@@ -52,12 +52,13 @@ class MyFrame(wx.Frame):
 
 
     def show_user_frame(self, username='', cur=None):
-        user_frame = UserPage(self, self.size, username)
-        self.sizer.Add(user_frame, proportion=1, flag=wx.EXPAND | wx.ALL)
-        user_frame.SetBackgroundColour(wx.Colour(245, 245, 246))
-        self.pages[UserPage] = user_frame
+        self.username = username
+        self.user_frame = UserPage(self, self.size, self.username)
+        self.sizer.Add(self.user_frame, proportion=1, flag=wx.EXPAND | wx.ALL)
+        self.user_frame.SetBackgroundColour(wx.Colour(245, 245, 246))
+        self.pages[UserPage] = self.user_frame
         if cur != None:
             cur.Hide()
-        user_frame.Show(True)
+        self.user_frame.Show(True)
         self.Layout()
         self.Refresh()

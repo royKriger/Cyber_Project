@@ -9,8 +9,8 @@ from cryptography.hazmat.primitives import serialization
 class LoginPage(wx.Panel):
     def __init__(self, parent, size):
         super(LoginPage, self).__init__(parent, size=size)
+        self.parent = parent
 
-        # Purple palette pulled from the background
         self.PURPLE_DARK = wx.Colour(40,  20,  70,  255)   # deep card bg
         self.PURPLE_MID = wx.Colour(80,  40, 130,  200)   # input bg (semi-transparent feel via label bg)
         self.PURPLE_LIGHT = wx.Colour(160, 100, 220, 255)   # accent / highlights
@@ -18,8 +18,6 @@ class LoginPage(wx.Panel):
         self.TEXT_DIM = wx.Colour(160, 140, 200, 255)   # dimmed label text
         self.ERROR_COLOR = wx.Colour(255, 100, 120, 255)   # red-pink errors
         self.TRANSPARENT_PANEL = wx.Colour(30, 15, 60, 180)  # dark overlay
-
-        self.parent = parent
 
         self.bg_bitmap = wx.Bitmap(r"Assets\background_image.jpg")
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
@@ -37,7 +35,6 @@ class LoginPage(wx.Panel):
         self.label.SetBackgroundColour(wx.Colour(0, 0, 0, 0))   # fully transparent
         self.content_sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 20)
 
-        self.inputs = []
         input_sizer = wx.BoxSizer(wx.VERTICAL)
 
         input_sizer.Add(Utilities.make_label(self, "Email", self.TEXT_DIM), 0, wx.LEFT, 5)
@@ -46,17 +43,15 @@ class LoginPage(wx.Panel):
         self.error1 = Utilities.make_error(self, self.ERROR_COLOR)
         input_sizer.Add(self.error1, 0, wx.LEFT | wx.BOTTOM, 4)
 
-        # Password
         input_sizer.Add(Utilities.make_label(self, "Password", self.TEXT_DIM), 0, wx.LEFT, 5)
         self.password = Utilities.make_input(self, self.TEXT_WHITE, password=True)
         input_sizer.Add(self.password, 0, wx.EXPAND | wx.BOTTOM, 2)
         self.error2 = Utilities.make_error(self, self.ERROR_COLOR)
         input_sizer.Add(self.error2, 0, wx.LEFT | wx.BOTTOM, 4)
 
-        self.inputs = [self.email, self.password, self.error1, self.error2]
+        self.inputs = [self.email, self.password]
 
-        # ── Checkboxes ─────────────────────────────────────────────────────
-        font_check = wx.Font(10, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        font_check = wx.Font(12, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 
         self.show_password = wx.CheckBox(self, label="Show Password")
         self.show_password.SetFont(font_check)
@@ -71,28 +66,19 @@ class LoginPage(wx.Panel):
         self.remember_me.SetBackgroundColour(wx.Colour(0, 0, 0, 0))
         input_sizer.Add(self.remember_me, 0, wx.LEFT | wx.TOP | wx.BOTTOM, 4)
 
-        # General error
         self.error = Utilities.make_error(self, self.ERROR_COLOR)
-        self.inputs.append(self.error)
         input_sizer.Add(self.error, 0, wx.ALIGN_CENTER | wx.BOTTOM, 6)
 
-        # ── Buttons ────────────────────────────────────────────────────────
+        self.errors = [self.error1, self.error2, self.error]
+
         buttons_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        def make_button(label):
-            btn = wx.Button(self, label=label, size=(160, 38), style=wx.BORDER_NONE)
-            btn.SetFont(wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-            btn.SetForegroundColour(self.TEXT_WHITE)
-            btn.SetBackgroundColour(wx.Colour(100, 50, 170))   # vivid purple button
-            return btn
+        self.log = Utilities.make_button(self, "Log In", self.TEXT_WHITE)
+        self.home = Utilities.make_button(self, "Home Page", self.TEXT_WHITE)
 
-        self.log  = make_button("Log In")
-        self.home = make_button("Home Page")
-
-        self.Bind(wx.EVT_BUTTON, lambda e: Utilities.go_home(self, self.parent, self.inputs), self.home)
+        self.Bind(wx.EVT_BUTTON, lambda e: Utilities.go_home(self, self.parent, self.inputs, self.errors), self.home)
         self.Bind(wx.EVT_BUTTON, self.on_log_in, self.log)
 
-        # Hover effect
         for btn in (self.log, self.home):
             btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=btn: b.SetBackgroundColour(wx.Colour(130, 70, 210)))
             btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=btn: b.SetBackgroundColour(wx.Colour(100, 50, 170)))
@@ -100,7 +86,6 @@ class LoginPage(wx.Panel):
         buttons_sizer.Add(self.log,  0, wx.ALIGN_CENTER | wx.ALL, 8)
         buttons_sizer.Add(self.home, 0, wx.ALIGN_CENTER | wx.ALL, 8)
 
-        # ── Assemble ───────────────────────────────────────────────────────
         self.content_sizer.Add(input_sizer,   0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 40)
         self.content_sizer.Add(buttons_sizer, 0, wx.ALIGN_CENTER)
 
@@ -140,59 +125,57 @@ class LoginPage(wx.Panel):
     def on_log_in(self, e):
         email = self.email.GetLineText(lineNo=0)
         password = self.password.GetLineText(lineNo=0)
-        flag = self.check_if_all_input_good(email, password)
+        
+        flag = Utilities.check_if_all_input_good(self, [email, password], self.errors)
 
-        if flag:
-            client = socket()
-            client.connect((Utilities.get_pc_ip(), 8200))
-            client.send("Log in".encode())
-            client.recv(1024)
-            client.send("login".encode())
-            print(client.recv(1024).decode())
-            public_key_pem = client.recv(2048)
-            public_key     = serialization.load_pem_public_key(public_key_pem)
+        if not flag:
+            return
+        
+        client = socket()
+        client.connect((Utilities.get_pc_ip(), 8200))
+        client.send("Log in".encode())
+        client.recv(1024)
+        client.send("login".encode())
+        print(client.recv(1024).decode())
+        public_key_pem = client.recv(2048)
+        public_key = serialization.load_pem_public_key(public_key_pem)
 
-            data = f"{email},{password}"
-            if self.remember_me.IsChecked():
-                data += ',remember'
+        data = f"{email},{password}"
+        if self.remember_me.IsChecked():
+            data += ',remember'
+        encrypted_data = Utilities.encrypt(data.encode(), public_key)
+        client.sendall(encrypted_data)
+
+        data = client.recv(1024).decode()
+        if data.startswith('200'):
+            print("Login completed successfully!")
+            self.email.SetLabel("")
+            self.password.SetLabel("")
+            if len(data.split('|')) > 1:
+                exists = os.path.isfile('authToken.json')
+                json_dump = {}
+                if exists:
+                    with open('authToken.json', 'r') as f:
+                        json_dump = json.load(f)
+                with open('authToken.json', 'w') as f:
+                    json_dump[email] = data.split("|")[-1]
+                    json.dump(json_dump, f)
+
+            data = f"logged in,{email}"
             encrypted_data = Utilities.encrypt(data.encode(), public_key)
             client.sendall(encrypted_data)
+            username = client.recv(1024).decode()
+            for inp in self.inputs:
+                inp.SetLabel("")
+            self.parent.show_user_frame(username, self)
 
-            data = client.recv(1024).decode()
-            if data.startswith('200'):
-                print("Login completed successfully!")
-                self.email.SetLabel("")
-                self.password.SetLabel("")
-                if len(data.split('|')) > 1:
-                    exists   = os.path.isfile('authToken.json')
-                    json_dump = {}
-                    if exists:
-                        with open('authToken.json', 'r') as f:
-                            json_dump = json.load(f)
-                    with open('authToken.json', 'w') as f:
-                        json_dump[email] = data.split("|")[-1]
-                        json.dump(json_dump, f)
+        else:
+            print("Operation was not successful!")
+            self.error.Label = data.split("|")[-1]
+            self.error.SetForegroundColour(wx.RED)
+            self.Layout()
 
-                data           = f"logged in,{email}"
-                encrypted_data = Utilities.encrypt(data.encode(), public_key)
-                client.sendall(encrypted_data)
-                username = client.recv(1024).decode()
-                for inp in self.inputs:
-                    inp.SetLabel("")
-                self.parent.show_user_frame(username, self)
-            else:
-                print("Operation was not successful!")
-                self.error.Label = data.split("|")[-1]
-                self.error.SetForegroundColour(wx.RED)
-                self.Layout()
-
-            client.close()
-
-
-    def check_if_all_input_good(self, email, password):
-        flag = Utilities.check_email_input(self, self.error1, email)
-        flag = Utilities.check_password_input(self, self.error2, password) and flag
-        return flag
+        client.close()
 
 
     def check_helper(self, event):

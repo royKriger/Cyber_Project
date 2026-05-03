@@ -6,7 +6,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
 
-
 class Utilities():
     def get_pc_ip():
         return "localhost"
@@ -83,9 +82,18 @@ class Utilities():
         return True
     
 
+    def check_if_all_input_good(parent, inputs, errors):
+        functions = [Utilities.check_email_input, Utilities.check_password_input, Utilities.check_user_input]
+        flag = True
+        for i in range(len(inputs)):
+            flag = functions[i](parent, errors[i], inputs[i]) and flag
+
+        return flag
+
+
     def make_label(window, text, color):
         lbl = wx.StaticText(window, label=text)
-        font_label = wx.Font(10, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        font_label = wx.Font(15, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
         lbl.SetFont(font_label)
         lbl.SetForegroundColour(color)
         lbl.SetBackgroundColour(wx.Colour(0, 0, 0, 0))
@@ -95,23 +103,30 @@ class Utilities():
     def make_input(window, color, password=False, value=''):
         style = wx.TE_PASSWORD if password else 0
         ctrl = wx.TextCtrl(window, size=(260, 30), style=style | wx.BORDER_NONE)
-        font_input = wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        font_input = wx.Font(15, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
         ctrl.SetFont(font_input)
         ctrl.SetForegroundColour(color)
         ctrl.SetBackgroundColour(wx.Colour(60, 30, 100))   # dark purple input bg
         if value != '':
             ctrl.SetValue(value)
-            print(value)
         return ctrl
 
 
     def make_error(window, color):
         err = wx.StaticText(window)
-        font_error = wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_ITALIC, wx.FONTWEIGHT_BOLD)
+        font_error = wx.Font(15, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_ITALIC, wx.FONTWEIGHT_BOLD)
         err.SetFont(font_error)
         err.SetForegroundColour(color)
         err.SetBackgroundColour(wx.Colour(0, 0, 0, 0))
         return err
+
+
+    def make_button(window, label, color):
+        btn = wx.Button(window, label=label, size=(160, 38), style=wx.BORDER_NONE)
+        btn.SetFont(wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
+        btn.SetForegroundColour(color)
+        btn.SetBackgroundColour(wx.Colour(100, 50, 170))
+        return btn
 
 
     def on_check(parent, color, password_input : wx.TextCtrl, checkbox : wx.CheckBox):
@@ -159,9 +174,11 @@ class Utilities():
         return encrypted_message
 
 
-    def go_home(cur, parent, inputs):
+    def go_home(cur, parent, inputs, errors):
         for input in inputs:
-            input.SetLabel("")
+            input.SetLabel('')
+        for error in errors:
+            error.SetLabel('')
         parent.show_frame(cur=cur)
 
 
@@ -173,7 +190,7 @@ class Utilities():
         with open('authToken.json', 'r') as file:
             tokens = json.load(file)
             if time == 'first':
-                email, token = next(iter(tokens.items()))
+                _, token = next(iter(tokens.items()))
             else:
                 token = tokens[time]
         client.send(token.encode())

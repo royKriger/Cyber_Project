@@ -1,14 +1,20 @@
 import os
 import wx
-import wx.lib.buttons as buttons
+from utilities import Utilities
 from login_page import LoginPage
 from register_page import RegisterPage
 
 
 class FirstPage(wx.Panel):
-    def __init__(self, parent, size):
+    def __init__(self, parent, size, username=''):
         super(FirstPage, self).__init__(parent, size=size)
-        color = wx.Colour(100, 100, 100, 1)
+        self.PURPLE_DARK = wx.Colour(40,  20,  70,  255)   # deep card bg
+        self.PURPLE_MID = wx.Colour(80,  40, 130,  200)   # input bg (semi-transparent feel via label bg)
+        self.PURPLE_LIGHT = wx.Colour(160, 100, 220, 255)   # accent / highlights
+        self.TEXT_WHITE = wx.Colour(230, 220, 255, 255)   # soft lavender-white text
+        self.TEXT_DIM = wx.Colour(160, 140, 200, 255)   # dimmed label text
+        self.ERROR_COLOR = wx.Colour(255, 100, 120, 255)   # red-pink errors
+        self.TRANSPARENT_PANEL = wx.Colour(30, 15, 60, 180)  # dark overlay
 
         self.bg_bitmap = wx.Bitmap(r"Assets\background_image.jpg")
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
@@ -16,42 +22,45 @@ class FirstPage(wx.Panel):
         self.Bind(wx.EVT_SIZE, lambda e: (self.Refresh(), e.Skip()))
 
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-
         self.main_sizer.AddStretchSpacer(1)
-
         self.content_sizer = wx.BoxSizer(wx.VERTICAL)
         
         self.label = wx.StaticText(self, label="Welcome!")
-        self.label.SetForegroundColour(wx.WHITE)
-        font = wx.Font(30, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_MEDIUM)
-        self.label.SetFont(font)
-        self.content_sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 40)
+        font_title = wx.Font(32, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        self.label.SetFont(font_title)
+        self.label.SetForegroundColour(self.TEXT_WHITE)
+        self.label.SetBackgroundColour(wx.Colour(0, 0, 0, 0))   # fully transparent
+        self.content_sizer.Add(self.label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 20)
 
         buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        buttons_list = {"Login Page": LoginPage, "Register Page": RegisterPage}
         
-        for text, page in buttons_list.items():
-            btn = buttons.GenButton(self, label=text, size=(120, 40))
-            btn.SetBackgroundColour(color)
-            btn.SetForegroundColour(wx.WHITE)
-            btn.SetBezelWidth(0)
-            btn.Bind(wx.EVT_BUTTON, lambda event, p=page: parent.show_frame(p, self))
-            buttons_sizer.Add(btn, 0, wx.ALL, 40)
+        self.login = Utilities.make_button(self, "Login Page", self.TEXT_WHITE)
+        self.register = Utilities.make_button(self, "Register Page", self.TEXT_WHITE)
 
-        self.content_sizer.Add(buttons_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 20)
+        self.Bind(wx.EVT_BUTTON, lambda event, p=LoginPage: parent.show_frame(p, self), self.login)
+        self.Bind(wx.EVT_BUTTON, lambda event, p=RegisterPage: parent.show_frame(p, self), self.register)
+
+        for btn in (self.login, self.register):
+            btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=btn: b.SetBackgroundColour(wx.Colour(130, 70, 210)))
+            btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=btn: b.SetBackgroundColour(wx.Colour(100, 50, 170)))
+
+        buttons_sizer.Add(self.login,  0, wx.ALIGN_CENTER | wx.ALL, 8)
+        buttons_sizer.Add(self.register, 0, wx.ALIGN_CENTER | wx.ALL, 8)
 
         if os.path.isfile('authToken.json'):
-            btn = buttons.GenButton(self, label='User page', size=(120, 40))
-            btn.SetBackgroundColour(color)
-            btn.SetForegroundColour(wx.WHITE)
-            btn.SetBezelWidth(0)
-            btn.Bind(wx.EVT_BUTTON, lambda event: parent.show_user_frame(cur=self))
-            self.content_sizer.Add(btn, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 20)        
-        
+            self.user = Utilities.make_button(self, "User Page", self.TEXT_WHITE)
+            self.user.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=self.user: b.SetBackgroundColour(wx.Colour(130, 70, 210)))
+            self.user.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=self.user: self.user.SetBackgroundColour(wx.Colour(100, 50, 170)))
+            buttons_sizer.Add(self.user, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+            self.user.Bind(wx.EVT_BUTTON, lambda event: parent.show_user_frame(username, cur=self))
+               
+        self.content_sizer.Add(buttons_sizer, 0, wx.ALIGN_CENTER)
+
         self.main_sizer.Add(self.content_sizer, 0, wx.ALIGN_CENTER)
         self.main_sizer.AddStretchSpacer(1)
 
         self.SetSizer(self.main_sizer)
+        self.Layout()
 
 
     def on_paint(self, event, item):

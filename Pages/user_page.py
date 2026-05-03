@@ -424,10 +424,12 @@ class UserPage(wx.Panel):
             client.connect((Utilities.get_pc_ip(), 8200))
             client.send(f"Share file|{self.username}".encode())
             connected_emails = client.recv(1024).decode().split(',')
-            client.send('Joules'.encode())
-            times_shared = client.recv(1024).decode().split(',')
-            client.close()
             frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
+            times_shared = []
+            if connected_emails[0] != 'No connected emails!':
+                client.send('Joules'.encode())
+                times_shared = client.recv(1024).decode().split(',')
+                client.close()
         else:
             frame = wx.Frame(self.parent, title='Auto save file', size=(525, 300))
         frame.Centre()
@@ -473,19 +475,6 @@ class UserPage(wx.Panel):
 
         if filename != '':
             self.emails_match(None, panel, filename, connected_emails, times_shared)
-    
-
-    def deploy_algo_script(self, path, frame_to_delete : wx.Frame):
-        accepted = False
-        try:
-            deploy_algo.main(path)
-        except Exception as e:
-            print(e)
-        else:
-            accepted = True
-
-        if accepted:
-            frame_to_delete.Destroy()
 
     
     def emails_match(self, event, parent : wx.Window, file : str, connected_emails, times_shared):
@@ -736,6 +725,19 @@ class UserPage(wx.Panel):
         if state == wx.ID_OK:
             return True
         return False
+
+
+    def deploy_algo_script(self, path, frame_to_delete : wx.Frame):
+        accepted = False
+        try:
+            deploy_algo.main(path)
+        except Exception as e:
+            print(e)
+        else:
+            accepted = True
+
+        if accepted:
+            frame_to_delete.Destroy()
 
 
     def delete_unwanted_files(self, sizer: wx.BoxSizer, stop: int=0) -> None:
