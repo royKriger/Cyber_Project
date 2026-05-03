@@ -6,10 +6,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
 
+
 class Utilities():
     def get_pc_ip():
         return "localhost"
-
 
     def check_user_input(parent, label : wx.StaticText, username):
         label.SetForegroundColour(wx.RED)
@@ -51,7 +51,6 @@ class Utilities():
         return True
 
 
-# סיסמה חזקה, כולל תווים, אות קטנה, אות גדולה, תווים מיוחדים
     def check_password_input(parent, label : wx.StaticText, password):
         label.SetForegroundColour(wx.RED)
         if len(password) == 0:
@@ -82,9 +81,40 @@ class Utilities():
         label.SetForegroundColour(wx.BLACK)
         parent.Layout()
         return True
+    
+
+    def make_label(window, text, color):
+        lbl = wx.StaticText(window, label=text)
+        font_label = wx.Font(10, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        lbl.SetFont(font_label)
+        lbl.SetForegroundColour(color)
+        lbl.SetBackgroundColour(wx.Colour(0, 0, 0, 0))
+        return lbl
 
 
-    def on_check(parent, password_input : wx.TextCtrl, checkbox : wx.CheckBox):
+    def make_input(window, color, password=False, value=''):
+        style = wx.TE_PASSWORD if password else 0
+        ctrl = wx.TextCtrl(window, size=(260, 30), style=style | wx.BORDER_NONE)
+        font_input = wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        ctrl.SetFont(font_input)
+        ctrl.SetForegroundColour(color)
+        ctrl.SetBackgroundColour(wx.Colour(60, 30, 100))   # dark purple input bg
+        if value != '':
+            ctrl.SetValue(value)
+            print(value)
+        return ctrl
+
+
+    def make_error(window, color):
+        err = wx.StaticText(window)
+        font_error = wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_ITALIC, wx.FONTWEIGHT_BOLD)
+        err.SetFont(font_error)
+        err.SetForegroundColour(color)
+        err.SetBackgroundColour(wx.Colour(0, 0, 0, 0))
+        return err
+
+
+    def on_check(parent, color, password_input : wx.TextCtrl, checkbox : wx.CheckBox):
         password = password_input.GetLineText(lineNo=0)
         input_sizer = password_input.GetContainingSizer()
         index = Utilities.get_item_index(input_sizer, password_input)
@@ -97,9 +127,9 @@ class Utilities():
         password_input.Destroy()
 
         if checkbox.IsChecked():
-            new_ctrl = wx.TextCtrl(parent, size=(250, 25), value=password)
+            new_ctrl = Utilities.make_input(parent, color, password=False, value=password)
         else:
-            new_ctrl = wx.TextCtrl(parent, size=(250, 25), value=password, style=wx.TE_PASSWORD)
+            new_ctrl = Utilities.make_input(parent, color, password=True, value=password)
         
         input_sizer.Insert(index, new_ctrl, 0, wx.Left | wx.Right, 20)
 
