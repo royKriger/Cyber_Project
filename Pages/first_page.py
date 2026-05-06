@@ -67,26 +67,23 @@ class FirstPage(wx.Panel):
         dc = wx.AutoBufferedPaintDC(self)
         dc.Clear()
         dc.DrawBitmap(self.bg_bitmap, 0, 0)
-        
+
         full_rect = wx.Rect()
-        for item in item.GetChildren():
-            item_rect = item.GetRect()
-            
+        for child in item.GetChildren():
+            r = child.GetRect()
             if full_rect.IsEmpty():
-                full_rect = item_rect
+                full_rect = r
             else:
-                full_rect.Union(item_rect)
+                full_rect.Union(r)
 
-        self.make_opacity_less(dc, full_rect, size=(100, 120))
-
-
-    def make_opacity_less(self, dc, full_rect, size=(0, 0)):
         gc = wx.GraphicsContext.Create(dc)
-        if size == (0, 0):
-            full_rect = full_rect.GetRect() #Gets the bounds of the container
-
         if gc:
-            full_rect.Inflate(size)
+            full_rect.Inflate(40, 50)
 
-            gc.SetBrush(gc.CreateBrush(wx.Brush(wx.Colour(0, 0, 0, 150))))
+            gc.SetBrush(wx.TRANSPARENT_BRUSH)
+            gc.SetPen(gc.CreatePen(wx.GraphicsPenInfo(wx.Colour(160, 80, 255, 60)).Width(6)))
+            gc.DrawRoundedRectangle(full_rect.x - 3, full_rect.y - 3, full_rect.width + 6, full_rect.height + 6, 18)
+
+            gc.SetPen(wx.TRANSPARENT_PEN)
+            gc.SetBrush(gc.CreateBrush(wx.Brush(wx.Colour(25, 10, 55, 195))))
             gc.DrawRoundedRectangle(full_rect.x, full_rect.y, full_rect.width, full_rect.height, 15)

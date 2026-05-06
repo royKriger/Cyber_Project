@@ -228,13 +228,13 @@ class UserPage(wx.Panel):
             client.send(content)
 
 
-    def open_file_or_folder_dialoge(self, event, file_or_folder):
-        if file_or_folder == 'file':
+    def open_file_or_folder_dialoge(self, event, file_or_folder, full_path=''):
+        if file_or_folder == 'file' and full_path == '':
             file_dialog = wx.FileDialog(self, "Select a file")
             if file_dialog.ShowModal() != wx.ID_OK:
                 return
             full_path = file_dialog.GetPath()
-        else:
+        elif file_or_folder == 'folder' and full_path == '':
             folder_dialog = wx.DirDialog(self, "Select a folder")
             if folder_dialog.ShowModal() != wx.ID_OK:
                 return
@@ -262,7 +262,6 @@ class UserPage(wx.Panel):
         file_exists = client.recv(1024).decode()
         if file_exists == 'exists!':
             dialog = file_or_folder[0].upper() + file_or_folder[1:]
-            print(dialog)
             if not self.show_dialog(dialog):
                 return
             client.send(f'Replace {file_or_folder}'.encode())
@@ -402,7 +401,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        full_path =  r'C:\Users\Roy\Desktop'
+        full_path =  r'C:\Users\Pc2\Desktop'
         if len(self.current_folder) > 0:
             label = os.path.join(*self.current_folder, label)
 
@@ -431,7 +430,7 @@ class UserPage(wx.Panel):
                 times_shared = client.recv(1024).decode().split(',')
                 client.close()
         else:
-            frame = wx.Frame(self.parent, title='Auto save file', size=(525, 300))
+            frame = wx.Frame(self.parent, title='Auto save file', size=(525, 200))
         frame.Centre()
         frame.Show()
 
@@ -458,14 +457,16 @@ class UserPage(wx.Panel):
             panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
         else:
             path_input = wx.TextCtrl(panel, size=(200, 30))
-            panel_sizer.Add(path_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
-
+            error_msg = wx.StaticText(panel)
+            error_msg.SetFont(wx.Font(13, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_ITALIC, wx.FONTWEIGHT_BOLD))
+            error_msg.SetForegroundColour(wx.RED)
             enter_path = wx.Button(panel, label='Enter path')
-            try:
-                panel.Bind(wx.EVT_BUTTON, lambda e: self.deploy_algo_script(path_input.GetLineText(lineNo=0), frame))
-            except Exception as e:
-                print(e)
-            panel_sizer.Add(enter_path, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
+
+            panel.Bind(wx.EVT_BUTTON, lambda e: self.deploy_algo_script(path_input.GetLineText(lineNo=0), frame, error_msg))
+
+            panel_sizer.Add(path_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
+            panel_sizer.Add(error_msg, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
+            panel_sizer.Add(enter_path, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
 
         panel.SetSizer(panel_sizer)
         frame.SetSizer(frame_sizer)
@@ -476,7 +477,7 @@ class UserPage(wx.Panel):
         if filename != '':
             self.emails_match(None, panel, filename, connected_emails, times_shared)
 
-    
+
     def emails_match(self, event, parent : wx.Window, file : str, connected_emails, times_shared):
         sizer = parent.GetSizer()
         if event != None:
@@ -486,9 +487,9 @@ class UserPage(wx.Panel):
         self.delete_unwanted_files(sizer)
         if prefix == '':
             table = dict(zip(connected_emails, times_shared))
-            sorted_by_value = dict(sorted(table.items(), key=lambda item: item[1], reverse=True))
+            sorted_by_times_shared = dict(sorted(table.items(), key=lambda item: item[1], reverse=True))
             i = 0
-            emails = list(sorted_by_value.keys())
+            emails = list(sorted_by_times_shared.keys())
             while i < 3 and i < len(emails):
                 button = wx.Button(parent, label=emails[i])
                 parent.Bind(wx.EVT_BUTTON, lambda event, e=emails[i]: self.send_files_to_user(e, file), button)
@@ -727,16 +728,23 @@ class UserPage(wx.Panel):
         return False
 
 
-    def deploy_algo_script(self, path, frame_to_delete : wx.Frame):
+    def deploy_algo_script(self, path, frame_to_delete : wx.Frame, error_label : wx.StaticText):
         accepted = False
         try:
-            deploy_algo.main(path)
+            current_folder = '\\'.join(self.current_folder)
+            deploy_algo.main(self.username, path, current_folder, Utilities.get_pc_ip())
         except Exception as e:
+            error_label.SetLabel('Path not found!')
+            frame_to_delete.Layout()
             print(e)
         else:
             accepted = True
 
         if accepted:
+            if os.path.isdir(path):
+                self.open_file_or_folder_dialoge(None, 'folder', path)
+            else:
+                self.open_file_or_folder_dialoge(None, 'file', path)
             frame_to_delete.Destroy()
 
 

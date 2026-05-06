@@ -83,8 +83,11 @@ class Server():
                             self.handle_file_or_folder(sock, file_or_folder)
                             all_sock.remove(sock)
                             sock.close()
-                        elif request == "Update file":
-                            print('WORKS!')
+                        elif request == "Update file" or request == "Update folder":
+                            file_or_folder = request.split(' ')[-1]
+                            self.auto_save_file_or_folder(sock, file_or_folder)
+                            all_sock.remove(sock)
+                            sock.close()
                     except TimeoutError:
                         all_sock.remove(sock)
                         sock.close()
@@ -580,10 +583,23 @@ class Server():
             else:
                 files = 'none'
 
-        data = f"{folders}|{files}"
-        client.send(data.encode())
+            data = f"{folders}|{files}"
+            client.send(data.encode())
 
         return folder_names, file_names
+
+
+    def auto_save_file_or_folder(self, client, file_or_folder):
+        client.send('Send username'.encode())
+        email = self.get_email(client)
+        client.send('Send filename'.encode())
+        path, filename = client.recv(1024).decode().split('|')
+        if file_or_folder == 'file':
+            path = os.path.join(self.path, email, path)
+            self.recieve_file(client, path, filename)
+        else:
+            path = os.path.join(self.path, email, path, filename)
+            self.recieve_all_files_and_folders(client, path)
 
 
     def remove_file(self, client):
