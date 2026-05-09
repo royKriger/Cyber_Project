@@ -39,12 +39,12 @@ class Server():
                     try:
                         request = sock.recv(1024).decode()
                         if request == "Remember me":
-                            sock.send("Joules".encode())
+                            sock.send("Send user token".encode())
                             self.returned_client(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Sign up" or request == "Log in":
-                            sock.send("Joules".encode())
+                            sock.send("Send type of action".encode())
                             self.accept_client(sock)
                             all_sock.remove(sock)
                             sock.close()
@@ -59,22 +59,22 @@ class Server():
                             all_sock.remove(sock)
                             sock.close()
                         elif request.startswith("Share to user"):
-                            sock.send("Joules".encode())
+                            sock.send("Send your username and the email to recieve the file".encode())
                             self.recv_files_to_user(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Get filenames":
-                            sock.send("Joules".encode())
+                            sock.send("Send username".encode())
                             self.send_filenames(sock)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Get folder" or request == "Get file":
-                            sock.send("Joules".encode())
+                            sock.send("Send username".encode())
                             self.get_file_or_folder(sock, request)
                             all_sock.remove(sock)
                             sock.close()
                         elif request == "Remove file":
-                            sock.send("Joules".encode())
+                            sock.send("Send username".encode())
                             self.remove_file(sock)
                             all_sock.remove(sock)
                             sock.close()
@@ -223,7 +223,7 @@ class Server():
             )
         )
         username = decrypted_bytes.decode()
-        client.send("Joules^2".encode())
+        client.send("Send filename".encode())
 
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0].split('@')[0]
@@ -300,15 +300,15 @@ class Server():
             client.send(','.join(times_shared).encode())
             return
         
-        client.send("Joules".encode())
-        prefix = client.recv(1024).decode()
+        client.send("Send email to recieve the file or folder".encode())
+        email_to_recieve = client.recv(1024).decode()
         conn_cur.execute("SELECT Email FROM Users")
         cur = conn_cur.fetchall()
         emails = []
         for email in cur:
             if not email[0].startswith('admin'):
                 emails.append(email[0])
-        if prefix in emails:
+        if email_to_recieve in emails:
             client.send('True'.encode())
         else:
             client.send('False'.encode())
@@ -338,7 +338,7 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User = ?", (username, ))
         email_to_send = conn_cur.fetchone()[0]
 
-        client.send("Joules^15".encode())
+        client.send("Send path".encode())
         path_to_send = client.recv(1024).decode()
 
         filename = path_to_send.split('\\')[-1]
@@ -422,7 +422,7 @@ class Server():
             os.mkdir(path)
             for item in files:
                 self.recieve_file(client, full_path, item)
-            client.send('Joules^3'.encode())
+            client.send('Send file and folder names'.encode())
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -443,13 +443,13 @@ class Server():
 
 
     def recieve_file(self, client, full_path, file):
-        client.send("Joules".encode())
+        client.send("Send extension and length of file".encode())
         data = client.recv(1024).decode()
         try:
             extension, length = data.split('|')[0], int(data.split('|')[-1])
         except TypeError:
             raise(TimeoutError)
-        client.send("Joules1".encode())
+        client.send("Send file content".encode())
 
         print(file, length)
 
@@ -476,7 +476,7 @@ class Server():
         email = self.get_email(client)
         self.text_files, self.bytes_files = [], []
 
-        client.send("Joules".encode())
+        client.send("Send folder name".encode())
         folder = client.recv(1024).decode()
         path = os.path.join(self.path, email)
         folder, check = folder.split("\n")
@@ -501,7 +501,7 @@ class Server():
 
     def get_file_or_folder(self, client, request):
         email = self.get_email(client)
-        client.send("Joules^2".encode())
+        client.send("Send filename".encode())
 
         file_name = client.recv(1024).decode()
         if 'SharedFiles' in file_name:
@@ -604,7 +604,7 @@ class Server():
 
     def remove_file(self, client):
         email = self.get_email(client)
-        client.send("Joules^2".encode())
+        client.send("Send filename".encode())
 
         file_name = client.recv(1024).decode()
         if 'SharedFiles' in file_name:

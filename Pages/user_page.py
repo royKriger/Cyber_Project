@@ -426,7 +426,7 @@ class UserPage(wx.Panel):
             frame = wx.Frame(self.parent, title='Share With', size=(525, 300))
             times_shared = []
             if connected_emails[0] != 'No connected emails!':
-                client.send('Joules'.encode())
+                client.send('Send user times shared'.encode())
                 times_shared = client.recv(1024).decode().split(',')
                 client.close()
         else:
@@ -551,7 +551,7 @@ class UserPage(wx.Panel):
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                client.send('Joules^3'.encode())
+                client.send('Send file'.encode())
                 self.recieve_file(client, full_path, item)
             return
 
@@ -559,9 +559,9 @@ class UserPage(wx.Panel):
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                client.send('Joules^3'.encode())
+                client.send('Send file'.encode())
                 self.recieve_file(client, full_path, item)
-            client.send('Joules^3'.encode())
+            client.send('Send all files'.encode())
             self.recieve_all_files_and_folders(client, path)
 
 
@@ -607,7 +607,7 @@ class UserPage(wx.Panel):
         data = client.recv(1024).decode()
         extension, length = data.split('|')[0], int(data.split('|')[-1])
 
-        client.send("Joules1".encode())
+        client.send("Send file content".encode())
         full_path = os.path.join(path, file)
 
         file_content = client.recv(length)
