@@ -1,5 +1,4 @@
 import wx
-import os
 from my_frame import MyFrame
 
 

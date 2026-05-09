@@ -8,7 +8,7 @@ def main(username, path, current_folder, ip):
         raise FileNotFoundError(f"The file '{path}' does not exist.")
     
     file_to_copy = 'modify_handler.py'
-    with open(f"Pages\{file_to_copy}", 'r') as file:
+    with open(fr"Pages\{file_to_copy}", 'r') as file:
         script = file.read()
 
     parent_dir = os.path.dirname(path)
