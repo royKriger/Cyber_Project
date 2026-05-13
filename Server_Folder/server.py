@@ -59,7 +59,7 @@ class Server():
                             all_sock.remove(sock)
                             sock.close()
                         elif request.startswith("Share to user"):
-                            sock.send("Send your username and the email to recieve the file".encode())
+                            sock.send("Send your username and the email to receive the file".encode())
                             self.recv_files_to_user(sock)
                             all_sock.remove(sock)
                             sock.close()
@@ -200,7 +200,7 @@ class Server():
             client.send('Corrupt token'.encode())
         else:
             client.send(username.encode())
-        conn.commit()
+
         conn.close()
 
 
@@ -248,7 +248,7 @@ class Server():
             file_name = file_name.split('\\')[-1]
             full_path = os.path.join(full_path, path)
 
-        is_file = not file_or_folder == 'file'
+        is_file = file_or_folder == 'file'
         if self.if_item_exists_dir(file_name, full_path, is_file):
             client.send('exists!'.encode())
             client.settimeout(None)
@@ -257,22 +257,21 @@ class Server():
                 return
             client.settimeout(self.timeout)
 
-            if not is_file:
+            if is_file:
                 os.remove(os.path.join(full_path, file_name))
             else:
                 shutil.rmtree(os.path.join(full_path, file_name))
 
-        if is_file:
+        if not is_file:
             full_path = os.path.join(full_path, file_name)
             os.mkdir(full_path)
 
             client.send('doesnt exist'.encode())
-            self.recieve_all_files_and_folders(client, full_path)
+            self.receive_all_files_and_folders(client, full_path)
 
         else:
-            self.recieve_file(client, full_path, file_name)
+            self.receive_file(client, full_path, file_name)
 
-        conn.commit()
         conn.close()
 
 
@@ -287,7 +286,7 @@ class Server():
             for email in cur:
                 if not email[0].startswith('admin'):
                     connected_emails.append(email[0])
-            if len(connected_emails) > 0:
+            if len(connected_emails):
                 client.send(','.join(connected_emails).encode())
             else:
                 print(connected_emails)
@@ -302,20 +301,19 @@ class Server():
             client.send(','.join(times_shared).encode())
             return
         
-        client.send("Send email to recieve the file or folder".encode())
-        email_to_recieve = client.recv(1024).decode()
+        client.send("Send email to receive the file or folder".encode())
+        email_to_receive = client.recv(1024).decode()
         conn_cur.execute("SELECT Email FROM Users")
         cur = conn_cur.fetchall()
         emails = []
         for email in cur:
             if not email[0].startswith('admin'):
                 emails.append(email[0])
-        if email_to_recieve in emails:
+        if email_to_receive in emails:
             client.send('True'.encode())
         else:
             client.send('False'.encode())
 
-        conn.commit()
         conn.close()
 
 
@@ -351,36 +349,36 @@ class Server():
         else:
             path_to_send = os.path.join(self.path, email_to_send.split('@')[0], path_to_send)
 
-        path_to_recieve = os.path.join(self.path.split('\\')[0], 'SharedFiles', email_to_recv.split('@')[0])
+        path_to_receive = os.path.join(self.path.split('\\')[0], 'SharedFiles', email_to_recv.split('@')[0])
 
-        if not os.path.exists(path_to_recieve):
-            os.mkdir(path_to_recieve)
+        if not os.path.exists(path_to_receive):
+            os.mkdir(path_to_receive)
 
         if os.path.isfile(path_to_send):
-            if os.path.isfile(os.path.join(path_to_recieve, filename)):
+            if os.path.isfile(os.path.join(path_to_receive, filename)):
                 conn_cur.execute("UPDATE Connected SET Times_Shared=? WHERE Users=? AND Emails=?", (times_shared, username, email_to_recv))
                 conn.commit()
                 conn.close()
                 return
             
             path_to_send = path_to_send.replace(f'\\{filename}', '')
-            self.send_file_to_reciever(path_to_send, path_to_recieve, filename)
+            self.send_file_to_receiver(path_to_send, path_to_receive, filename)
         else:
-            path_to_recieve = os.path.join(path_to_recieve, filename)
-            if os.path.exists(path_to_recieve):
+            path_to_receive = os.path.join(path_to_receive, filename)
+            if os.path.exists(path_to_receive):
                 conn_cur.execute("UPDATE Connected SET Times_Shared=? WHERE Users=? AND Emails=?", (times_shared, username, email_to_recv))
                 conn.commit()
                 conn.close()
                 return
 
-            os.mkdir(path_to_recieve)
-            self.share_all_files_in_folder(client, path_to_send, path_to_recieve)
+            os.mkdir(path_to_receive)
+            self.share_all_files_in_folder(client, path_to_send, path_to_receive)
 
         conn.commit()
         conn.close()
 
 
-    def send_file_to_reciever(self, path_send, path_recv, item):
+    def send_file_to_receiver(self, path_send, path_recv, item):
             path_send = os.path.join(path_send, item)
             path_recv = os.path.join(path_recv, item)
 
@@ -400,32 +398,32 @@ class Server():
         folders, files = self.get_and_send_folders_and_files(None, path_send)
         if not folders:
             for item in files:
-                self.send_file_to_reciever(path_send, path_recv, item)
+                self.send_file_to_receiver(path_send, path_recv, item)
             return
         
         for folder in folders:
             for item in files:
-                self.send_file_to_reciever(path_send, path_recv, item)
+                self.send_file_to_receiver(path_send, path_recv, item)
             path_send = os.path.join(path_send, folder)
             path_recv = os.path.join(path_recv, folder)
             os.mkdir(path_recv)
             self.share_all_files_in_folder(client, path_send, path_recv)
 
 
-    def recieve_all_files_and_folders(self, client, full_path):
+    def receive_all_files_and_folders(self, client, full_path):
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.recieve_file(client, full_path, item)
+                self.receive_file(client, full_path, item)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.recieve_file(client, full_path, item)
+                self.receive_file(client, full_path, item)
             client.send('Send file and folder names'.encode())
-            self.recieve_all_files_and_folders(client, path)
+            self.receive_all_files_and_folders(client, path)
 
 
     def get_all_filenames(self, client):
@@ -444,7 +442,7 @@ class Server():
         return folders, files
 
 
-    def recieve_file(self, client, full_path, file):
+    def receive_file(self, client, full_path, file):
         client.send("Send extension and length of file".encode())
         data = client.recv(1024).decode()
         try:
@@ -529,7 +527,7 @@ class Server():
                 client.send(f"txt|{length}".encode())
                 client.recv(1024)
 
-                client.send(content.encode())
+                client.sendall(content)
                 return
             
         with open(full_path, 'rb') as f:
@@ -538,7 +536,7 @@ class Server():
             client.send(f"bytes|{length}".encode())
             client.recv(1024)
             
-            client.send(content)
+            client.sendall(content)
 
     
     def send_all_files_in_folder(self, client, folder_path):
@@ -575,12 +573,12 @@ class Server():
                 file_names.append(item)
 
         if client:
-            if len(folder_names) > 0:
+            if len(folder_names):
                 folders = ','.join(folder_names)
             else:
                 folders = 'none'
                         
-            if len(file_names) > 0:
+            if len(file_names):
                 files = ','.join(file_names)
             else:
                 files = 'none'
@@ -598,10 +596,10 @@ class Server():
         path, filename = client.recv(1024).decode().split('|')
         if file_or_folder == 'file':
             path = os.path.join(self.path, email, path)
-            self.recieve_file(client, path, filename)
+            self.receive_file(client, path, filename)
         else:
             path = os.path.join(self.path, email, path, filename)
-            self.recieve_all_files_and_folders(client, path)
+            self.receive_all_files_and_folders(client, path)
 
 
     def remove_file(self, client):
@@ -632,7 +630,6 @@ class Server():
         conn_cur.execute("SELECT Email FROM Users WHERE User=?", (username,))
         email = conn_cur.fetchone()[0]
 
-        conn.commit()
         conn.close()
 
         return email.split('@')[0]
@@ -645,14 +642,13 @@ class Server():
         for item in items:
             current_path = os.path.join(full_path, item)
             if file_or_folder:
-                if os.path.isdir(current_path):
-                    file_names.append(item)
-            else:
                 if not os.path.isdir(current_path):
                     file_names.append(item)
+            else:
+                if os.path.isdir(current_path):
+                    file_names.append(item)
 
-        files = ','.join(file_names)
-        if file_name in files:
+        if file_name in file_names:
             return True
 
         return False
