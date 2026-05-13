@@ -27,7 +27,10 @@ class MyFrame(wx.Frame):
         
         if os.path.isfile('authToken.json'):
             username = Utilities.remember_me('first')
-            self.show_user_frame(username)
+            if username:
+                self.show_user_frame(username)
+            else:
+                self.show_frame()
         else:
             self.show_frame()
 

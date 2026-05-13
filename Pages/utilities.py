@@ -1,5 +1,6 @@
 import wx
 import re
+import os
 import json
 import socket
 from cryptography.hazmat.primitives import hashes
@@ -188,13 +189,23 @@ class Utilities():
         client.send("Remember me".encode())
         client.recv(1024)
         with open('authToken.json', 'r') as file:
-            tokens = json.load(file)
+            emails = json.load(file)
             if time == 'first':
-                _, token = next(iter(tokens.items()))
+                token = next(iter(emails.values()))
             else:
-                token = tokens[time]
+                token = emails[time]
         client.send(token.encode())
         username = client.recv(1024).decode()
         client.close()
+        if username == 'Corrupt token':
+            if len(emails.keys()) <= 1:
+                os.remove('authToken.json')
+                return False
+            with open('authToken.json', 'w') as file:
+                if time == 'first':
+                    time = next(iter(emails.keys()))
+                del emails[time]
+                json.dump(emails, file)
+            return Utilities.remember_me('first')
         return username
     

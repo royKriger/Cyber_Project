@@ -166,7 +166,7 @@ class LoginPage(wx.Panel):
             client.sendall(encrypted_data)
             username = client.recv(1024).decode()
             for inp in self.inputs:
-                inp.SetLabel("")
+                inp.SetLabel('')
             self.parent.show_user_frame(username, self)
 
         else:

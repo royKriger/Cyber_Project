@@ -47,7 +47,7 @@ class FirstPage(wx.Panel):
         buttons_sizer.Add(self.login,  0, wx.ALIGN_CENTER | wx.ALL, 8)
         buttons_sizer.Add(self.register, 0, wx.ALIGN_CENTER | wx.ALL, 8)
 
-        if os.path.isfile('authToken.json'):
+        if username != '':
             self.user = Utilities.make_button(self, "User Page", self.TEXT_WHITE)
             self.user.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=self.user: b.SetBackgroundColour(wx.Colour(130, 70, 210)))
             self.user.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=self.user: self.user.SetBackgroundColour(wx.Colour(100, 50, 170)))

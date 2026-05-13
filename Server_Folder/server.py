@@ -193,11 +193,13 @@ class Server():
         conn_cur = conn.cursor()
 
         token = client.recv(1024).decode()
-
-        conn_cur.execute("SELECT User FROM Users WHERE login_ID=?", (token,))
-        username = conn_cur.fetchone()[0]
-        client.send(username.encode())
-
+        try:
+            conn_cur.execute("SELECT User FROM Users WHERE login_ID=?", (token,))
+            username = conn_cur.fetchone()[0]
+        except:
+            client.send('Corrupt token'.encode())
+        else:
+            client.send(username.encode())
         conn.commit()
         conn.close()
 
