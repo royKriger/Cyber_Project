@@ -210,13 +210,13 @@ class UserPage(wx.Panel):
 
     def send_file(self, client, full_path: str):
         if self.is_txt(full_path):
-            with open(full_path, 'r') as f:
-                content = f.read()
+            with open(full_path, 'r', errors='ignore') as f:
+                content = f.read().encode()
                 length = len(content)
                 client.send(f"txt|{length}".encode())
                 client.recv(1024)
 
-                client.send(content.encode())
+                client.send(content)
                 return
 
         with open(full_path, 'rb') as f:
@@ -303,6 +303,8 @@ class UserPage(wx.Panel):
 
     def get_and_send_folders_and_files(self, client, folder_path):
         items = os.listdir(folder_path)
+        if '.git' in items:
+            items.remove('.git')
         folder_names = []
         file_names = []
         
@@ -612,7 +614,7 @@ class UserPage(wx.Panel):
 
         file_content = client.recv(length)
         while len(file_content) < length:
-            file_content += client.recv(length)
+            file_content += client.recv(length - len(file_content))
 
         if extension == 'txt':
             file_content = file_content.decode()

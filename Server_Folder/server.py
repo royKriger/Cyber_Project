@@ -449,7 +449,7 @@ class Server():
         data = client.recv(1024).decode()
         try:
             extension, length = data.split('|')[0], int(data.split('|')[-1])
-        except TypeError:
+        except:
             raise(TimeoutError)
         client.send("Send file content".encode())
 
@@ -459,7 +459,7 @@ class Server():
 
         file_content = client.recv(length)
         while len(file_content) < length:
-            file_content += client.recv(length)
+            file_content += client.recv(length - len(file_content))
 
         if extension == 'txt':
             file_content = file_content.decode()
@@ -523,8 +523,8 @@ class Server():
 
     def send_file(self, client, full_path):        
         if self.is_txt(full_path):
-            with open(full_path, 'r') as f:
-                content = f.read()
+            with open(full_path, 'r', errors='ignore') as f:
+                content = f.read().encode()
                 length = len(content)
                 client.send(f"txt|{length}".encode())
                 client.recv(1024)
