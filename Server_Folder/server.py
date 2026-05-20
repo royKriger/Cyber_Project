@@ -4,6 +4,9 @@ import shutil
 import select
 import bcrypt
 import sqlite3
+from google import genai
+from dotenv import load_dotenv
+from google.genai import types
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -17,13 +20,18 @@ class Server():
         self.server.listen(5)
         self.path = r"Server_Folder\ServerFiles"
         self.database = r"Server_Folder\drive_db.sqlite"
-        self.text_files, self.bytes_files = [], []
+        self.text_files, self.image_files = [], []
 
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
             backend=default_backend()
         )
+
+        load_dotenv('system.env')
+        self.API_KEY = os.getenv('API_KEY')
+
+        self.ai_client = genai.Client(api_key=self.API_KEY)
 
         self.public_key = self.private_key.public_key()
 
@@ -442,7 +450,7 @@ class Server():
         return folders, files
 
 
-    def receive_file(self, client, full_path, file):
+    def receive_file(self, client, directory, file):
         client.send("Send extension and length of file".encode())
         data = client.recv(1024).decode()
         try:
@@ -453,28 +461,81 @@ class Server():
 
         print(file, length)
 
-        path = os.path.join(full_path, file)
+        path = os.path.join(directory, file)
 
         file_content = client.recv(length)
         while len(file_content) < length:
             file_content += client.recv(length - len(file_content))
 
+
         if extension == 'txt':
+            prompt = """
+            You are a duplicate image detector.
+            I will send you a list of images followed by their file paths.
+            Compare every image EXCEPT the last one against the last image.
+            If any image is visually identical to the last one, respond with: YES <path of the identical image>
+            If none are identical, respond with: NO
+            """
             file_content = file_content.decode()
+            
+            files_content = ''
+            for text_file in self.text_files:
+                with open(text_file, 'r') as f:
+                    files_content += f.read() + '\n' + text_file + '\n'
+
+            files_content += file_content + '\n' + path
+
+            prompt += files_content
+
+            response = self.ai_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt)
+            answer = response.text.strip()
+            print(answer)
+
             with open(path, 'w') as file:
                 file.write(file_content)
             self.text_files.append(path)
+            return
+        
+        prompt = """
+        You are a duplicate image detector.
+        I will send you a list of images followed by their file paths.
+        Compare every image EXCEPT the last one against the last image.
+        If any image is visually identical to the last one, respond with: YES <path of the identical image>
+        If none are identical, respond with: NO
+        """
 
-        else:
-            with open(path, 'wb') as f:
-                f.write(file_content)
-            if self.is_image(path):
-                self.bytes_files.append(path)
+        parts = [prompt]
+
+        for image_file in self.image_files:
+            with open(image_file, 'rb') as f:
+                image_data = f.read()
+            ext = image_file.rsplit('.', 1)[-1].lower()
+            mime = f'image/{"jpeg" if ext in ("jpg", "jpeg", "jfif") else ext}'
+            parts.append(types.Part.from_bytes(data=image_data, mime_type=mime))
+            parts.append(image_file)
+
+        ext = path.rsplit('.', 1)[-1].lower()
+        mime = f'image/{"jpeg" if ext in ("jpg", "jpeg", "jfif") else ext}'
+        parts.append(types.Part.from_bytes(data=file_content, mime_type=mime))
+        parts.append(image_file)
+
+        response = self.ai_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=parts)
+        answer = response.text.strip()
+        print(answer)
+
+        with open(path, 'wb') as f:
+            f.write(file_content)
+        if self.is_image(path):
+            self.image_files.append(path)
 
 
     def send_filenames(self, client):
         email = self.get_email(client)
-        self.text_files, self.bytes_files = [], []
+        self.text_files, self.image_files = [], []
 
         client.send("Send folder name".encode())
         folder = client.recv(1024).decode()
@@ -496,7 +557,7 @@ class Server():
                 self.text_files.append(full_path)
             else:
                 if self.is_image(full_path):
-                    self.bytes_files.append(full_path)
+                    self.image_files.append(full_path)
 
 
     def get_file_or_folder(self, client, request):
@@ -618,7 +679,7 @@ class Server():
             if self.is_txt(path):
                 self.text_files.remove(path)
             elif self.is_image(path):
-                self.bytes_files.remove(path)
+                self.image_files.remove(path)
             os.remove(path)
 
     

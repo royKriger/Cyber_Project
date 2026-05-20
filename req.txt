@@ -2,3 +2,5 @@ bcrypt
 cryptography
 wxPython
 watchdog
+python-dotenv
+google-genai
