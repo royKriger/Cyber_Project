@@ -257,6 +257,7 @@ class Server():
             full_path = os.path.join(full_path, path)
 
         is_file = file_or_folder == 'file'
+        replace = True
         if self.if_item_exists_dir(file_name, full_path, is_file):
             client.send('exists!'.encode())
             client.settimeout(None)
@@ -266,7 +267,12 @@ class Server():
             client.settimeout(self.timeout)
 
             if is_file:
-                os.remove(os.path.join(full_path, file_name))
+                full_path = os.path.join(full_path, file_name)
+                os.remove(full_path)
+                if self.is_image(file_name):
+                    self.image_files.remove(full_path)
+                elif self.is_txt(full_path):
+                    self.text_files.remove(full_path)
             else:
                 shutil.rmtree(os.path.join(full_path, file_name))
 
@@ -276,9 +282,8 @@ class Server():
 
             client.send('doesnt exist'.encode())
             self.receive_all_files_and_folders(client, full_path)
-
         else:
-            self.receive_file(client, full_path, file_name)
+            self.receive_file(client, full_path, file_name, replace)
 
         conn.close()
 
@@ -422,14 +427,14 @@ class Server():
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.receive_file(client, full_path, item)
+                self.receive_file(client, full_path, item, False)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.receive_file(client, full_path, item)
+                self.receive_file(client, full_path, item, False)
             client.send('Send file and folder names'.encode())
             self.receive_all_files_and_folders(client, path)
 
@@ -450,7 +455,49 @@ class Server():
         return folders, files
 
 
-    def receive_file(self, client, directory, file):
+    def save_file(self, path, content, binary=False):
+        mode = 'wb' if binary else 'w'
+        with open(path, mode) as f:
+            f.write(content)
+        target = self.image_files if binary else self.text_files
+        target.append(path)
+
+
+    def generate(self, contents):
+        try:
+            return self.ai_client.models.generate_content(
+                model='gemini-3.5-flash',
+                contents=contents
+            ).text.strip()
+        except Exception as e:
+            print(e, 'Try again later!')
+            return None
+
+
+    def get_mime(self, path):
+        ext = path.rsplit('.', 1)[-1].lower()
+        return f'image/{"jpeg" if ext in ("jpg", "jfif") else ext}'
+
+
+    def handle_duplicate_response(self, response, client, path, content, binary=False):
+        if response == 'NO':
+            client.send('fraternal!'.encode())
+            self.save_file(path, content, binary)
+            return
+        answer, identical_path = response.split()
+        if answer == 'YES':
+            client.send('identical!'.encode())
+            client.settimeout(None)
+            replace = client.recv(1024).decode() == 'Replace'
+            client.settimeout(self.timeout)
+            if replace:
+                os.remove(identical_path)
+                (self.image_files if binary else self.text_files).remove(identical_path)
+                client.send(os.path.basename(identical_path).encode())
+                self.save_file(path, content, binary)
+
+
+    def receive_file(self, client : socket.socket, directory, file, replace):
         client.send("Send extension and length of file".encode())
         data = client.recv(1024).decode()
         try:
@@ -462,13 +509,21 @@ class Server():
         print(file, length)
 
         path = os.path.join(directory, file)
-
+        binary = extension != 'txt'
         file_content = client.recv(length)
         while len(file_content) < length:
             file_content += client.recv(length - len(file_content))
 
+        if not replace:
+            self.save_file(path, file_content if binary else file_content.decode(), binary)
+            client.send('fraternal!'.encode())
+            return
 
-        if extension == 'txt':
+        if not binary:
+            file_content = file_content.decode()
+            files_content = ''.join(
+                open(text_file).read() + '\n' + text_file + '\n' for text_file in self.text_files
+            )
             prompt = """
             You are a duplicate image detector.
             I will send you a list of images followed by their file paths.
@@ -476,61 +531,31 @@ class Server():
             If any image is visually identical to the last one, respond with: YES <path of the identical image>
             If none are identical, respond with: NO
             """
-            file_content = file_content.decode()
-            
-            files_content = ''
-            for text_file in self.text_files:
-                with open(text_file, 'r') as f:
-                    files_content += f.read() + '\n' + text_file + '\n'
 
-            files_content += file_content + '\n' + path
+            response = self.generate(prompt + files_content + file_content + '\n' + path)
 
-            prompt += files_content
+        else:
+            prompt = """
+            You are a duplicate image detector.
+            I will send you a list of images followed by their file paths.
+            Compare every image EXCEPT the last one against the last image.
+            If any image is visually identical to the last one, respond with: YES <path of the identical image>
+            If none are identical, respond with: NO
+            """
 
-            response = self.ai_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt)
-            answer = response.text.strip()
-            print(answer)
+            parts = [prompt]
+            for image_file in self.image_files:
+                with open(image_file, 'rb') as f:
+                    parts.append(types.Part.from_bytes(data=f.read(), mime_type=self.get_mime(image_file)))
+                parts.append(image_file)
+            parts.append(types.Part.from_bytes(data=file_content, mime_type=self.get_mime(path)))
+            parts.append(path)
+            response = self.generate(parts)
 
-            with open(path, 'w') as file:
-                file.write(file_content)
-            self.text_files.append(path)
-            return
-        
-        prompt = """
-        You are a duplicate image detector.
-        I will send you a list of images followed by their file paths.
-        Compare every image EXCEPT the last one against the last image.
-        If any image is visually identical to the last one, respond with: YES <path of the identical image>
-        If none are identical, respond with: NO
-        """
-
-        parts = [prompt]
-
-        for image_file in self.image_files:
-            with open(image_file, 'rb') as f:
-                image_data = f.read()
-            ext = image_file.rsplit('.', 1)[-1].lower()
-            mime = f'image/{"jpeg" if ext in ("jpg", "jpeg", "jfif") else ext}'
-            parts.append(types.Part.from_bytes(data=image_data, mime_type=mime))
-            parts.append(image_file)
-
-        ext = path.rsplit('.', 1)[-1].lower()
-        mime = f'image/{"jpeg" if ext in ("jpg", "jpeg", "jfif") else ext}'
-        parts.append(types.Part.from_bytes(data=file_content, mime_type=mime))
-        parts.append(image_file)
-
-        response = self.ai_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=parts)
-        answer = response.text.strip()
-        print(answer)
-
-        with open(path, 'wb') as f:
-            f.write(file_content)
-        if self.is_image(path):
-            self.image_files.append(path)
+        #response = r'YES Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
+        #response = r'NO' #In case the AI is experiencing high demand (just to check if works what come next)
+        if response:
+            self.handle_duplicate_response(response, client, path, file_content, binary)
 
 
     def send_filenames(self, client):
@@ -657,7 +682,7 @@ class Server():
         path, filename = client.recv(1024).decode().split('|')
         if file_or_folder == 'file':
             path = os.path.join(self.path, email, path)
-            self.receive_file(client, path, filename)
+            self.receive_file(client, path, filename, False)
         else:
             path = os.path.join(self.path, email, path, filename)
             self.receive_all_files_and_folders(client, path)

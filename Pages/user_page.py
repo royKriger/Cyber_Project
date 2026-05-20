@@ -208,7 +208,18 @@ class UserPage(wx.Panel):
         button.Refresh()
 
 
-    def send_file(self, client, full_path: str):
+    def identical_file(self, client):
+        file_identical = client.recv(1024).decode()
+        if file_identical == 'identical!':
+            dialog = 'A file with the same content'
+            if not self.show_dialog(dialog):
+                return
+            client.send('Replace'.encode())
+            file_to_replace = client.recv(1024).decode()
+            self.files.remove(file_to_replace)
+
+
+    def send_file(self, client : socket.socket, full_path: str):
         if self.is_txt(full_path):
             with open(full_path, 'r', errors='ignore') as f:
                 content = f.read().encode()
@@ -217,6 +228,7 @@ class UserPage(wx.Panel):
                 client.recv(1024)
 
                 client.sendall(content)
+                self.identical_file(client)
                 return
 
         with open(full_path, 'rb') as f:
@@ -226,6 +238,7 @@ class UserPage(wx.Panel):
             client.recv(1024)
             
             client.sendall(content)
+            self.identical_file(client)
 
 
     def open_file_or_folder_dialog(self, event, file_or_folder, full_path=''):
@@ -261,7 +274,7 @@ class UserPage(wx.Panel):
         file_exists = client.recv(1024).decode()
         if file_exists == 'exists!':
             dialog = file_or_folder[0].upper() + file_or_folder[1:]
-            if not self.show_dialog(dialog):
+            if not self.show_dialog(dialog, (500, 400)):
                 return
             client.send(f'Replace {file_or_folder}'.encode())
             client.recv(1024)
@@ -403,7 +416,7 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        full_path =  r'C:\Users\Pc2\Desktop'
+        full_path =  r'C:\Users\roykr\Desktop'
         if len(self.current_folder):
             label = os.path.join(*self.current_folder, label)
 
@@ -719,8 +732,8 @@ class UserPage(wx.Panel):
         self.parent.show_user_frame(username, self)
 
 
-    def show_dialog(self, item : str):
-        dialog = wx.Dialog(self, title=f'{item} already exists!', size=(300, 220),
+    def show_dialog(self, item : str, size=(600, 500)):
+        dialog = wx.Dialog(self, title=f'{item} already exists!', size=size,
                             name=f'{item} already exists!', style=wx.DEFAULT_DIALOG_STYLE & ~wx.CLOSE_BOX)
         dialog.Centre()
 
@@ -728,8 +741,8 @@ class UserPage(wx.Panel):
         label = wx.StaticText(dialog, label=f'{item} already exists!')
         sizer.Add(label, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
 
-        replace_file = wx.Button(dialog, label=f"Replace {item.lower()} in destination", size=(200, 60), name="replace")
-        close = wx.Button(dialog, label="Cancel", size=(200, 50), name="cancel")
+        replace_file = wx.Button(dialog, label=f"Replace {item.lower()} in destination", size=(400, 60), name="replace")
+        close = wx.Button(dialog, label="Cancel", size=(400, 50), name="cancel")
 
         sizer.Add(replace_file, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
         sizer.Add(close, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 5)
