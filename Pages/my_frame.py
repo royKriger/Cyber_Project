@@ -21,10 +21,9 @@ class MyFrame(wx.Frame):
         for F in (FirstPage, LoginPage, RegisterPage):
             cur = F(self, self.size)
             self.sizer.Add(cur, proportion=1, flag=wx.EXPAND | wx.ALL)
-            cur.SetBackgroundColour(wx.Colour(245, 245, 246))
             cur.Hide()
             self.pages[F] = cur
-        
+
         if os.path.isfile('authToken.json'):
             username = Utilities.remember_me('first')
             if username:
@@ -35,17 +34,22 @@ class MyFrame(wx.Frame):
             self.show_frame()
 
         self.SetSizer(self.sizer)
-        
+
         self.Layout()
 
 
     def show_frame(self, page=FirstPage, cur=None):
-        if page == FirstPage and UserPage in self.pages:
-            frame = FirstPage(self, self.size, self.username)
+        if UserPage in self.pages and page == FirstPage and cur == self.pages[UserPage]:
+            frame = FirstPage(self, self.size)
             self.sizer.Replace(self.pages[page], frame)
             self.pages[page].Destroy()
             self.pages[page] = frame
             frame.SetBackgroundColour(wx.Colour(245, 245, 246))
+        elif page == FirstPage and UserPage in self.pages:
+            frame = FirstPage(self, self.size, self.username)
+            self.sizer.Replace(self.pages[page], frame)
+            self.pages[page].Destroy()
+            self.pages[page] = frame
         frame = self.pages[page]
         if cur != None:
             cur.Hide()

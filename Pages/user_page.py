@@ -416,7 +416,8 @@ class UserPage(wx.Panel):
         client.recv(1024)
 
         label = btn.Label
-        full_path =  r'C:\Users\roykr\Desktop'
+        windows_username = os.environ.get('USERNAME')
+        full_path =  rf'C:\Users\{windows_username}\Downloads'
         if len(self.current_folder):
             label = os.path.join(*self.current_folder, label)
 
