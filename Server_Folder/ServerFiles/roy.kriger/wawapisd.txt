@@ -4,3 +4,6 @@ wxPython
 watchdog
 python-dotenv
 google-genai
+waksjdgakwd
+wuasydfgkajwgd
+wasdjgakjgdkjagjkg

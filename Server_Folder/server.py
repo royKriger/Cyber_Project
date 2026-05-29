@@ -267,12 +267,7 @@ class Server():
             client.settimeout(self.timeout)
 
             if is_file:
-                full_path = os.path.join(full_path, file_name)
-                os.remove(full_path)
-                if self.is_image(file_name):
-                    self.image_files.remove(full_path)
-                elif self.is_txt(full_path):
-                    self.text_files.remove(full_path)
+                os.remove(os.path.join(full_path, file_name))
             else:
                 shutil.rmtree(os.path.join(full_path, file_name))
 
@@ -427,14 +422,14 @@ class Server():
         folders, files = self.get_all_filenames(client)
         if not folders:
             for item in files:
-                self.receive_file(client, full_path, item, False)
+                self.receive_file(client, full_path, item, True)
             return
 
         for folder in folders:
             path = os.path.join(full_path, folder)
             os.mkdir(path)
             for item in files:
-                self.receive_file(client, full_path, item, False)
+                self.receive_file(client, full_path, item, True)
             client.send('Send file and folder names'.encode())
             self.receive_all_files_and_folders(client, path)
 
@@ -466,7 +461,7 @@ class Server():
     def generate(self, contents):
         try:
             return self.ai_client.models.generate_content(
-                model='gemini-3.5-flash',
+                model='gemini-2.5-flash',
                 contents=contents
             ).text.strip()
         except Exception as e:
@@ -514,7 +509,7 @@ class Server():
         while len(file_content) < length:
             file_content += client.recv(length - len(file_content))
 
-        if not replace:
+        if replace:
             self.save_file(path, file_content if binary else file_content.decode(), binary)
             client.send('fraternal!'.encode())
             return
@@ -553,9 +548,9 @@ class Server():
             response = self.generate(parts)
 
         #response = r'YES Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
-        #response = r'NO' #In case the AI is experiencing high demand (just to check if works what come next)
-        if response:
-            self.handle_duplicate_response(response, client, path, file_content, binary)
+        if not response:
+            response = 'NO' #In case the AI is experiencing high demand (just to check if works what come next)
+        self.handle_duplicate_response(response, client, path, file_content, binary)
 
 
     def send_filenames(self, client):
@@ -682,9 +677,10 @@ class Server():
         path, filename = client.recv(1024).decode().split('|')
         if file_or_folder == 'file':
             path = os.path.join(self.path, email, path)
-            self.receive_file(client, path, filename, False)
+            self.receive_file(client, path, filename, True)
         else:
             path = os.path.join(self.path, email, path, filename)
+            client.send('Send all file and folder names'.encode())
             self.receive_all_files_and_folders(client, path)
 
 

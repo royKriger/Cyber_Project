@@ -13,25 +13,39 @@ class MyHandler(FileSystemEventHandler):
         self.path = path
         self.server_ip = ip
         self.current_folder = current_folder
+        self.is_dir = os.path.isdir(path)
 
 
     def on_modified(self, event):
-        file = self.path.split('\\')[-1]
-        file_or_folder = 'file' if os.path.isfile(self.path) else 'folder'
+        file = os.path.basename(self.path)
+        event_name = os.path.basename(event.src_path)
 
-        if event.src_path.endswith(file):
-            client = socket.socket()
-            client.connect((self.server_ip, 8200))
-            client.send(f'Update {file_or_folder}'.encode())
-            client.recv(1024)
-            client.send(self.username.encode())
-            client.recv(1024)
-            client.send(f"{self.current_folder}|{file}".encode())
-            if file_or_folder == 'file':
-                client.recv(1024)
-                self.send_file(client, self.path)
-            else:
-                self.send_all_files_in_folder(client, self.path)
+        if self.is_dir:
+            is_relevant = (
+                    event.src_path == self.path or
+                    event.src_path.startswith(self.path + os.sep)
+            )
+        else:
+            is_relevant = event_name == file
+
+        if not is_relevant:
+            return
+
+        file_or_folder = 'folder' if self.is_dir else 'file'
+
+        client = socket.socket()
+        client.connect((self.server_ip, 8200))
+        client.send(f'Update {file_or_folder}'.encode())
+        client.recv(1024)
+        client.send(self.username.encode())
+        client.recv(1024)
+        client.send(f"{self.current_folder}|{file}".encode())
+        client.recv(1024)
+        if file_or_folder == 'file':
+            self.send_file(client, self.path)
+        else:
+            self.send_all_files_in_folder(client, self.path)
+        client.close()
 
 
     def send_all_files_in_folder(self, client, folder_path):
@@ -62,6 +76,7 @@ class MyHandler(FileSystemEventHandler):
                 client.recv(1024)
 
                 client.send(content.encode())
+                print(client.recv(1024))
                 return
 
         with open(full_path, 'rb') as f:
@@ -71,6 +86,7 @@ class MyHandler(FileSystemEventHandler):
             client.recv(1024)
             
             client.send(content)
+            print(client.recv(1024))
 
 
     def get_and_send_folders_and_files(self, client, folder_path):
@@ -85,15 +101,8 @@ class MyHandler(FileSystemEventHandler):
             else:
                 file_names.append(item)
 
-        if len(folder_names) > 0:
-            folders = ','.join(folder_names)
-        else:
-            folders = 'none'
-                    
-        if len(file_names) > 0:
-            files = ','.join(file_names)
-        else:
-            files = 'none'
+        folders = ','.join(folder_names) if folder_names else 'none'
+        files = ','.join(file_names) if file_names else 'none'
 
         data = f"{folders}|{files}"
         client.send(data.encode())
@@ -120,11 +129,12 @@ if __name__ == '__main__':
     ip = sys.argv[2]
     path = sys.argv[3]
     current_folder = sys.argv[4]
-    folder = os.path.dirname(path)
-    
+    watch_dir = path if os.path.isdir(path) else os.path.dirname(path)
+
     event_handler = MyHandler(username, path, ip, current_folder)
     observer = Observer()
-    observer.schedule(event_handler, path=folder, recursive=False)        
+
+    observer.schedule(event_handler, path=watch_dir, recursive=os.path.isdir(path))
     observer.start()
 
     script_path = os.path.abspath(__file__)

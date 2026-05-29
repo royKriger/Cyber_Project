@@ -275,7 +275,7 @@ class UserPage(wx.Panel):
         if file_exists == 'exists!':
             dialog = file_or_folder[0].upper() + file_or_folder[1:]
             if not self.show_dialog(dialog, (500, 400)):
-                return
+                return False
             client.send(f'Replace {file_or_folder}'.encode())
             client.recv(1024)
 
@@ -761,11 +761,11 @@ class UserPage(wx.Panel):
         return False
 
 
-    def deploy_algo_script(self, path, frame_to_delete : wx.Frame, error_label : wx.StaticText):
+    def deploy_algo_script(self, path : str, frame_to_delete : wx.Frame, error_label : wx.StaticText):
         accepted = False
+        path = path.strip('"')
         try:
             current_folder = '\\'.join(self.current_folder)
-            deploy_algo.main(self.username, path, current_folder, Utilities.get_pc_ip())
         except Exception as e:
             error_label.SetLabel('Path not found!')
             frame_to_delete.Layout()
@@ -774,10 +774,9 @@ class UserPage(wx.Panel):
             accepted = True
 
         if accepted:
-            if os.path.isdir(path):
-                self.open_file_or_folder_dialog(None, 'folder', path)
-            else:
-                self.open_file_or_folder_dialog(None, 'file', path)
+            file_or_folder = 'folder' if os.path.isdir(path) else 'file'
+            if self.open_file_or_folder_dialog(None, file_or_folder, path) != False:
+                deploy_algo.main(self.username, path, current_folder, Utilities.get_pc_ip())
             frame_to_delete.Destroy()
 
 
