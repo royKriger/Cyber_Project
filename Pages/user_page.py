@@ -153,7 +153,7 @@ class UserPage(wx.Panel):
             button = wx.Button(self.main_panel, wx.ID_ANY, label=self.folders[i], name="folder", style=wx.BORDER_NONE)
             button.SetBackgroundColour(btn_color)
             button.SetForegroundColour((255, 255, 255))
-            
+
             button.Bind(wx.EVT_ENTER_WINDOW, lambda e, b=button: self.on_button_hover(b, True, 1))
             button.Bind(wx.EVT_LEAVE_WINDOW, lambda e, b=button: self.on_button_hover(b, False, 0))
 
@@ -203,7 +203,7 @@ class UserPage(wx.Panel):
 
     def on_button_hover(self, button: wx.Button, hover: bool, index: int):
         color = [(21, 81, 170), (52, 152, 219), (213, 250, 255), (255, 229, 214), (255, 244, 206)]
-        
+
         button.SetBackgroundColour(color[index] if hover else color[index])
         button.Refresh()
 
@@ -498,7 +498,7 @@ class UserPage(wx.Panel):
         panel_sizer.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 20)
 
         email_input = wx.TextCtrl(panel, size=(250, 30))
-        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails, times_shared), email_input)
+        panel.Bind(wx.EVT_TEXT, lambda event: self.emails_match(event, panel, filename, connected_emails, times_shared, frame), email_input)
         panel_sizer.Add(email_input, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 10)
 
         panel.SetSizer(panel_sizer)

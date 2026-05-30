@@ -76,7 +76,7 @@ class MyHandler(FileSystemEventHandler):
                 client.recv(1024)
 
                 client.send(content.encode())
-                print(client.recv(1024))
+                client.recv(1024)
                 return
 
         with open(full_path, 'rb') as f:
@@ -86,7 +86,7 @@ class MyHandler(FileSystemEventHandler):
             client.recv(1024)
             
             client.send(content)
-            print(client.recv(1024))
+            client.recv(1024)
 
 
     def get_and_send_folders_and_files(self, client, folder_path):

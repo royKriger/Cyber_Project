@@ -257,7 +257,7 @@ class Server():
             full_path = os.path.join(full_path, path)
 
         is_file = file_or_folder == 'file'
-        replace = True
+        replace = False
         if self.if_item_exists_dir(file_name, full_path, is_file):
             client.send('exists!'.encode())
             client.settimeout(None)
@@ -529,7 +529,7 @@ class Server():
 
             response = self.generate(prompt + files_content + file_content + '\n' + path)
 
-        else:
+        elif self.is_image(path):
             prompt = """
             You are a duplicate image detector.
             I will send you a list of images followed by their file paths.
@@ -548,9 +548,12 @@ class Server():
             response = self.generate(parts)
 
         #response = r'YES Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
-        if not response:
-            response = 'NO' #In case the AI is experiencing high demand (just to check if works what come next)
-        self.handle_duplicate_response(response, client, path, file_content, binary)
+            if not response:
+                print(response)
+                response = 'NO' #In case the AI is experiencing high demand (just to check if works what come next)
+            self.handle_duplicate_response(response, client, path, file_content, binary)
+        self.save_file(path, file_content if binary else file_content.decode(), binary)
+        client.send('fraternal!'.encode())
 
 
     def send_filenames(self, client):
