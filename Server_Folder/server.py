@@ -297,7 +297,6 @@ class Server():
             if len(connected_emails):
                 client.send(','.join(connected_emails).encode())
             else:
-                print(connected_emails)
                 client.send('No connected emails!'.encode())
                 return
             client.recv(1024)
@@ -423,6 +422,7 @@ class Server():
         if not folders:
             for item in files:
                 self.receive_file(client, full_path, item, True)
+                client.recv(1024)
             return
 
         for folder in folders:
@@ -430,6 +430,7 @@ class Server():
             os.mkdir(path)
             for item in files:
                 self.receive_file(client, full_path, item, True)
+                client.recv(1024)
             client.send('Send file and folder names'.encode())
             self.receive_all_files_and_folders(client, path)
 
@@ -479,7 +480,7 @@ class Server():
             client.send('fraternal!'.encode())
             self.save_file(path, content, binary)
             return
-        answer, identical_path = response.split()
+        answer, identical_path = response.split('|')
         if answer == 'YES':
             client.send('identical!'.encode())
             client.settimeout(None)
@@ -523,7 +524,7 @@ class Server():
             You are a duplicate image detector.
             I will send you a list of images followed by their file paths.
             Compare every image EXCEPT the last one against the last image.
-            If any image is visually identical to the last one, respond with: YES <path of the identical image>
+            If any image is visually identical to the last one, respond with: YES|<path of the identical image>
             If none are identical, respond with: NO
             """
 
@@ -534,7 +535,7 @@ class Server():
             You are a duplicate image detector.
             I will send you a list of images followed by their file paths.
             Compare every image EXCEPT the last one against the last image.
-            If any image is visually identical to the last one, respond with: YES <path of the identical image>
+            If any image is visually identical to the last one, respond with: YES|<path of the identical image>
             If none are identical, respond with: NO
             """
 
@@ -547,7 +548,7 @@ class Server():
             parts.append(path)
             response = self.generate(parts)
 
-        #response = r'YES Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
+            #response = r'YES|Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
         else:
             self.save_file(path, file_content if binary else file_content.decode(), binary)
             client.send('fraternal!'.encode())

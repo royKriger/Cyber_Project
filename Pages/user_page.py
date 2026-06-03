@@ -217,6 +217,8 @@ class UserPage(wx.Panel):
             client.send('Replace'.encode())
             file_to_replace = client.recv(1024).decode()
             self.files.remove(file_to_replace)
+        else:
+            client.send('End'.encode())
 
 
     def send_file(self, client : socket.socket, full_path: str):
