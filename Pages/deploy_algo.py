@@ -14,8 +14,11 @@ def main(username, path, current_folder, ip):
     parent_dir = os.path.dirname(path)
     filepath = os.path.join(parent_dir, file_to_copy)
 
-    if os.path.isfile(filepath):
-        return
+    i = 1
+    while os.path.isfile(filepath):
+        file_to_copy = f'modify_handler{str(i)}.py'
+        filepath = os.path.join(parent_dir, file_to_copy)
+        i += 1
     
     with open(filepath, 'w') as file:
         file.write(script)

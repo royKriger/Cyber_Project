@@ -548,12 +548,14 @@ class Server():
             response = self.generate(parts)
 
         #response = r'YES Server_Folder\ServerFiles\roy.kriger\req.txt' #In case the AI is experiencing high demand (just to check if works what come next)
-            if not response:
-                print(response)
-                response = 'NO' #In case the AI is experiencing high demand (just to check if works what come next)
-            self.handle_duplicate_response(response, client, path, file_content, binary)
-        self.save_file(path, file_content if binary else file_content.decode(), binary)
-        client.send('fraternal!'.encode())
+        else:
+            self.save_file(path, file_content if binary else file_content.decode(), binary)
+            client.send('fraternal!'.encode())
+            return
+        if not response:
+            response = 'NO' #In case the AI is experiencing high demand (just to check if works what come next)
+        print(response)
+        self.handle_duplicate_response(response, client, path, file_content, binary)
 
 
     def send_filenames(self, client):
