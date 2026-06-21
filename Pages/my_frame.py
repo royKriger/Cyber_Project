@@ -39,17 +39,17 @@ class MyFrame(wx.Frame):
 
 
     def show_frame(self, page=FirstPage, cur=None):
-        if UserPage in self.pages and page == FirstPage and cur == self.pages[UserPage]:
+        if page == FirstPage and os.path.exists('authToken.json'):
+            frame = FirstPage(self, self.size, self.username)
+            self.sizer.Replace(self.pages[page], frame)
+            self.pages[page].Destroy()
+            self.pages[page] = frame
+        elif page == FirstPage:
             frame = FirstPage(self, self.size)
             self.sizer.Replace(self.pages[page], frame)
             self.pages[page].Destroy()
             self.pages[page] = frame
             frame.SetBackgroundColour(wx.Colour(245, 245, 246))
-        elif page == FirstPage and UserPage in self.pages:
-            frame = FirstPage(self, self.size, self.username)
-            self.sizer.Replace(self.pages[page], frame)
-            self.pages[page].Destroy()
-            self.pages[page] = frame
         frame = self.pages[page]
         if cur != None:
             cur.Hide()
